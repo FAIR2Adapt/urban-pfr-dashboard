@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Flood-Risk Dashboard</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<div class="container">
+  <aside class="sidebar">
+    <div class="logo">
+      <h1>Flood-Risk Dashboard</h1>
+      <p>Urban Pluvial Flood Risk Assessment</p>
+    </div>
+
+    <div class="section">
+      <h3 class="section-title">Cities</h3>
+      <select id="sourceSelector" class="dropdown"></select>
+    </div>
+
+    <div class="section" id="visualizationSelector">
+      <div class="viz-setup" id="vizSetup">
+        <p class="viz-setup-title">No data configured yet</p>
+        <p class="viz-setup-hint">See the README — <em>Adding and converting data</em> — for the full guide.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3 class="section-title">Basemap</h3>
+      <div id="basemapSelector" class="basemap-list"></div>
+    </div>
+
+    <div class="section" id="metadataSection" style="display:none">
+      <h3 class="section-title">Metadata</h3>
+      <a id="metaToggle" class="meta-link" role="button" tabindex="0" aria-pressed="false">Scientific metadata</a>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="header">
+      <div class="header-left">
+        <h2 id="currentTitle">Loading…</h2>
+        <p id="currentSubtitle"></p>
+      </div>
+    </header>
+
+    <div class="map-container">
+      <div id="map"></div>
+
+      <div id="loadingOverlay" class="loading-overlay hidden">
+        <div id="spinner" class="spinner"></div>
+        <p>Loading data…</p>
+      </div>
+
+      <div class="legend-panel" id="legendPanel">
+        <h4>Legend</h4>
+        <div id="legendContent"></div>
+      </div>
+
+      <div id="metaOverlay" class="meta-overlay hidden">
+        <div class="meta-overlay-header">
+          <h4>Scientific metadata</h4>
+          <span class="meta-overlay-close" id="metaClose">✕</span>
+        </div>
+        <div id="metaContent"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

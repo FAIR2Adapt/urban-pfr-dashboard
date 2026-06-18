@@ -1,0 +1,24 @@
+services:
+  flood-risk-dashboard:
+    build: .
+    image: flood-risk-dashboard
+    container_name: flood-risk-dashboard
+    ports:
+      - "8000:8000"
+    environment:
+      APP_HOST: "0.0.0.0"
+      APP_PORT: "8000"
+
+      DATA_ROOT: "/app/test-data"
+    volumes:
+
+      - ./config:/app/config:ro
+      - ./test-data:/app/test-data:ro
+
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/api/sources' % os.environ.get('APP_PORT','8000'))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

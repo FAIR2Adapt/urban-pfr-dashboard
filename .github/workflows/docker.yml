@@ -1,0 +1,51 @@
+name: Docker
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docker:
+    name: Build and run
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t flood-risk-dashboard:test .
+
+      - name: Start container
+        run: docker run -d --name dashboard-test -p 8000:8000 flood-risk-dashboard:test
+
+      - name: Wait for server
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8000/api/sources >/dev/null; then
+              echo "server is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs dashboard-test || true
+          exit 1
+
+      - name: Check API
+        run: curl -fsS http://localhost:8000/api/sources
+
+      - name: Logs
+        if: always()
+        run: docker logs dashboard-test || true
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f dashboard-test || true

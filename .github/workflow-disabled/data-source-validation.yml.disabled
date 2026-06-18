@@ -1,0 +1,49 @@
+name: Data source validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_id:
+        description: "Source id to validate"
+        required: true
+        default: "private-api-source"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: data-source-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate source
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Check credentials
+        run: |
+          test -n "$PRIVATE_API_URL"
+          test -n "$PRIVATE_API_TOKEN"
+        env:
+          PRIVATE_API_URL: ${{ secrets.PRIVATE_API_URL }}
+          PRIVATE_API_TOKEN: ${{ secrets.PRIVATE_API_TOKEN }}
+
+      - name: Validate dashboard data
+        run: python scripts/check_dashboard_contract.py --source "${{ inputs.source_id }}"
+        env:
+          PRIVATE_API_URL: ${{ secrets.PRIVATE_API_URL }}
+          PRIVATE_API_TOKEN: ${{ secrets.PRIVATE_API_TOKEN }}

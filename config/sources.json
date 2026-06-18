@@ -1,0 +1,20 @@
+{
+  "defaultSource": "hamburg-rocrate-local",
+  "sources": [
+    {
+      "id": "hamburg-rocrate-local",
+      "label": "Hamburg RO-Crate local output",
+      "adapter": "rocrate-output",
+      "enabled": true,
+      "locator": {
+        "type": "local-path",
+        "value": "test-data/hamburg-rocrate"
+      },
+      "expectedResources": {
+        "riskMap": { "format": "geojson", "required": true },
+        "boundaries": { "format": "geojson", "required": false },
+        "metadata": { "format": "ro-crate-json", "required": true }
+      }
+    }
+  ]
+}
