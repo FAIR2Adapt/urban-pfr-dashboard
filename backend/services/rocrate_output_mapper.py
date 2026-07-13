@@ -438,6 +438,7 @@ class ROCrateOutputMapper:
                 "accessTier": entity.get("accessTier"),
                 "conditionsOfAccess": entity.get("conditionsOfAccess"),
                 "download": bool(entity.get("download")),
+                "contentSize": entity.get("contentSize"),
             })
         return files
 

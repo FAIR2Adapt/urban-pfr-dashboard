@@ -187,7 +187,8 @@ function renderMetadata(ds) {
         .join("")}</ul>`
     : "";
 
-  // FDO public/private tiers (from the crate's hasPart accessTier)
+  // FDO public/private tiers (from the crate's hasPart accessTier).
+  const fmtSize = (b) => (b >= 1e6 ? `${(b / 1e6).toFixed(1)} MB` : b >= 1e3 ? `${(b / 1e3).toFixed(0)} KB` : "");
   const tiered = (md.files || []).filter((f) => f.accessTier);
   const access = tiered.length
     ? `<ul style="margin:0;padding-left:16px;font-size:.8rem">${tiered
@@ -196,7 +197,10 @@ function renderMetadata(ds) {
           const tag = priv
             ? `<span title="${esc(f.conditionsOfAccess || "Policy-controlled access")}" style="color:#b45309">🔒 private — restricted</span>`
             : `<span style="color:#15803d">🔓 public</span>`;
-          return `<li>${esc(f.name || f.id)} — ${tag}</li>`;
+          const dl = f.download && f.localPath
+            ? ` — <a href="${esc(f.localPath)}" download style="font-size:.75rem">download${f.contentSize ? ` (${fmtSize(+f.contentSize)})` : ""}</a>`
+            : "";
+          return `<li>${esc(f.name || f.id)} — ${tag}${dl}</li>`;
         })
         .join("")}</ul>`
     : "";
