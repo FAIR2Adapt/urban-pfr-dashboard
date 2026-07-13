@@ -7,6 +7,7 @@ export const state = {
 
   figure: "figure4",
   view: "public",            // public | private  (private = building-level, authorized)
+  renderer: new URLSearchParams(location.search).get("renderer") || "maplibre",
   enabledLayers: {
     riskMap: true,
     socialVulnerability: false,

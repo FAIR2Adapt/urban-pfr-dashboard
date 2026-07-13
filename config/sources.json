@@ -6,7 +6,7 @@
       "label": "Hamburg — public HEALPix sample ( output subset)",
       "adapter": "rocrate-output",
       "enabled": true,
-      "note": "Demo fixture , Pending data-owner and validation approval for publication .",
+      "note": "Local demo fixture (not committed): public-tier sample (k-anonymous cells, no building-level data). Generate with scripts/make_public_fixture.py.",
       "locator": {
         "type": "local-path",
         "value": "examples/hamburg-healpix-sample"

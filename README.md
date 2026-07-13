@@ -5,16 +5,16 @@ This dashboard visualizes **urban pluvial flood-risk** from RO-Crate research pa
 
 ## What the dashboard shows
 
-- **Demo Study area** — pick **Hamburg**, **Bremen**, or **Compare all**.
-- **Dashboard view** :
-  - **Risk hotspots** 
-  - **Risk and social vulnerability** 
-- **Evidence / metadata** — shows the RO-Crate for the selected source.
+- **Risk map (PFR)** — aggregated HEALPix cells (public tier), rendered with MapLibre GL.
+- **Context backgrounds** — social vulnerability and vulnerability drivers.
+- **Public / internal views** — the server decides which tiers a deployment may see.
+- **Evidence / metadata** — provenance, data-access conditions and scholarly
+  annotations read from the source RO-Crates.
 ---
 
 ## Quick start
 
-**(local):**
+**local:**
 
 ```bash
 clone repo 
@@ -33,10 +33,10 @@ docker compose up --build
 
 open <http://localhost:8000>.
 
-> `test-data/` is configured sources.
 
-- If the dashboard loads but **no data appears**, add data (above) and check
-  `config/sources.json`.
+- MapLibre GL is the default renderer.
+- If the dashboard loads but **no data appears**, generate demo data (above) and
+  check `config/sources.json`.
 ---
 
 
@@ -46,11 +46,11 @@ Sources are declared in `config/sources.json` (the registry). Each entry names a
 
 ```json
 {
-  "id": "hamburg-rocrate-local",
-  "label": "Hamburg RO-Crate local output",
+  "id": "hamburg-healpix-sample",
+  "label": "Hamburg — public HEALPix sample",
   "adapter": "rocrate-output",
   "enabled": true,
-  "locator": { "type": "local-path", "value": "test-data/hamburg-rocrate" }
+  "locator": { "type": "local-path", "value": "examples/hamburg-healpix-sample" }
 }
 ```
 
@@ -58,6 +58,11 @@ Sources are declared in `config/sources.json` (the registry). Each entry names a
   Docker). 
 - `defaultSource` chooses what loads first; `enabled: false` sources show greyed out.
 - Set `DASHBOARD_CONFIG` to point at a different registry file (see Docker).
+- `deployment` (`"public"`, default, or `"internal"`) controls whether the private
+  tier is served.
+- Formats: FGB/GPKG are the package outputs,
+  PMTiles are derived web-rendering distributions; FGB supports `?bbox=` viewport
+  reads with a server-side cap.
 ---
 
 ### 3. Register the source
@@ -111,3 +116,8 @@ Then register it in `backend/adapters/registry.py` and reference
 `"adapter": "my-source"` from a source. Run
 `python scripts/check_dashboard_contract.py` to confirm the shape.
 
+## Nest steps
+
+The architecture is prepared for the next integration steps: adoption of the final FDO metadata as it becomes complete, consolidation of classification
+thresholds following scientific validation, and a policy-based refinement of access
+control. These are incremental extensions of existing interfaces.

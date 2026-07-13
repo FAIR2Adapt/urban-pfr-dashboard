@@ -1,6 +1,7 @@
 import { state, FIGURES, BASEMAPS } from "../state.js";
 import { $, mkEl } from "./dom.js";
 import { setBasemap } from "../map/map.js";
+import { setBasemapGl } from "../map/maplibre.js";
 
 export function buildVisualizationSelector(onChange) {
   const container = $("visualizationSelector");
@@ -102,7 +103,7 @@ export function wireBasemap() {
     input.name = "basemap";
     input.checked = bm.value === state.basemap;
     input.addEventListener("change", () => {
-      if (input.checked) setBasemap(bm.value);
+      if (input.checked) { setBasemap(bm.value); setBasemapGl(bm.value); }
     });
     const span = mkEl("span");
     span.textContent = bm.label;

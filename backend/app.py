@@ -79,11 +79,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         return self._config.deployment == "internal"
 
     def _serve_source_file(self, source_id, filename, query=None):
-        """Serve one resource file from a source's package root.
-        Only files that exist directly inside the configured package root are
-        served. Supports HTTP Range (any file — needed by PMTiles clients) and
-        ?bbox= viewport filtering for FlatGeobuf.
-        """
+        """Serve one package file; supports Range and ?bbox= for .fgb, no path traversal."""
         source = self._config.get(source_id)
         if not source:
             return self._send_json(404, {"error": f"Unknown source id: {source_id}"})
@@ -169,8 +165,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             pass  # client hung up mid-transfer 
 
     def _serve_fgb_bbox(self, target, query):
-        """Viewport read of a FlatGeobuf: return only the features intersecting
-        ?bbox=minx,miny,maxx,maxy as GeoJSON, hard-capped at FGB_BBOX_LIMIT."""
+        """Return FGB features intersecting ?bbox= as GeoJSON, capped at FGB_BBOX_LIMIT."""
         raw = (query.get("bbox") or [""])[0]
         try:
             minx, miny, maxx, maxy = (float(v) for v in raw.split(","))

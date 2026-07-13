@@ -187,13 +187,7 @@ class ROCrateOutputMapper:
         return None
 
     def to_dashboard_dataset(self, dataset_id: str = "hamburg-rocrate-derived") -> dict:
-        """Parse the package and return one normalized dashboard dataset dict.
-
-        Two crate flavours are supported:
-        - data-product crates (profile urban-pfr-dataproduct/0.1): layers are
-          declared explicitly via dashboardRole/variableMapping — no guessing.
-        - legacy claim-based crates: kept as fallback for old/demo packages.
-        """
+        """Return the normalized dataset; data-product crates first, claim-based as fallback."""
         if self._is_dataproduct_crate():
             return self._map_dataproduct(dataset_id)
 
@@ -285,12 +279,7 @@ class ROCrateOutputMapper:
             )
         return issues
 
-    # ------------------------------------------------------------------
-    #TODO the current development use following metadata need to be update using
-    # final FDO
-    # It use following metadata: dashboardRole, variableMapping,
-    # accessTier, renderingStrategy, sourceLayer, classification 
-    # ------------------------------------------------------------------
+    # data-product crate path (dashboardRole/variableMapping/...); TODO align with final FDO
 
     def _dataproduct_entities(self) -> list:
         root = self._index.get("./", {})
@@ -365,6 +354,7 @@ class ROCrateOutputMapper:
         metadata = self._build_metadata(root)
         metadata["files"] = self._dataproduct_files()
         metadata["provenance"] = self._dataproduct_provenance()
+        claims, figures = self._merge_knowledge_crate(metadata)
 
         dashboard_views = self._build_dashboard_views(layers)
         ui = self._dataproduct_ui(layers, dashboard_views)
@@ -377,18 +367,41 @@ class ROCrateOutputMapper:
             "profile": conforms.get("@id") if isinstance(conforms, dict) else conforms,
             "fieldSchema": root.get("fieldSchema"),
             "metadata": metadata,
-            "claims": [],
+            "claims": claims,
             "layers": layers,
             "views": views,
             "allowedViews": ["public"],
             "dashboardViews": dashboard_views,
-            "figures": [],
+            "figures": figures,
             "ui": ui,
             "diagnostics": self._diagnostics,
         }
         for issue in self._validate_dataproduct(dataset):
             self._warn(issue)
         return dataset
+
+    def _merge_knowledge_crate(self, metadata: dict) -> tuple:
+        """Display-only merge of the knowledge."""
+        kdir = self.package_root / "knowledge"
+        if not (kdir / self.METADATA_FILE).exists():
+            return [], []
+        try:
+            km = ROCrateOutputMapper(kdir)
+            kmeta = km._build_metadata(km._index.get("./", {}))
+            for key in ("title", "description", "datePublished", "status",
+                        "publisher", "authors", "concepts", "statements"):
+                if kmeta.get(key):
+                    metadata[key] = kmeta[key]
+            claims = km._build_claims()
+            figures = km._build_figures(claims)
+            for item in [o for c in claims for o in c.get("outputs", [])] + figures:
+                if item.get("localPath"):
+                    item["localPath"] = f"knowledge/{item['localPath']}"
+            self._diagnostics["knowledgeCrate"] = "knowledge/ro-crate-metadata.json"
+            return claims, figures
+        except Exception as exc:
+            self._warn(f"knowledge crate ignored: {exc}")
+            return [], []
 
     def _product_distributions(self, product: dict) -> list:
         distributions = []
@@ -422,8 +435,7 @@ class ROCrateOutputMapper:
         }
 
     def _dataproduct_files(self) -> list:
-        """metadata.files = every distribution File (for the access panel and
-        download links) — not the logical product entities."""
+        """metadata.files = distribution File entities (access panel + download links)."""
         files = []
         for entity in self._by_type("File"):
             fid = entity.get("@id")

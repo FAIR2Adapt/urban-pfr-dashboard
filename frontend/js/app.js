@@ -7,16 +7,22 @@ import { $, setText, setLoading, showError } from "./ui/dom.js";
 import { buildVisualizationSelector, wireBasemap } from "./ui/sidebar.js";
 import { buildSourceSelector } from "./ui/sourceSelector.js";
 import { wireMetadataToggle, refreshMetadataPanel, setMetadataAvailable } from "./ui/metadataPanel.js";
+import { glAvailable, initGl, showGl, renderGl } from "./map/maplibre.js";
 
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   initMap();
+  if (state.renderer === "maplibre" && glAvailable()) initGl();
   wireBasemap();
   wireMetadataToggle();
   wireViewportRefetch();
   await loadSources();
 }
+
+const useGl = () =>
+  state.renderer === "maplibre" && glAvailable() && state.view === "public" &&
+  state.dataset?.sourceType === "rocrate-output";
 
 // fgb-bbox layers are viewport reads: after a pan/zoom, re-render so the server is asked for the new extent .
 function wireViewportRefetch() {
@@ -96,6 +102,17 @@ async function render(fit = false) {
     setText("currentTitle", multi ? `${ids.length} sources` : primary.label || "");
     setText("currentSubtitle", "");
 
+    if (useGl()) {
+      showGl(true);
+      renderGl(fit);
+      setText("currentSubtitle", "Public view — privacy-preserving aggregated layers");
+      setMetadataAvailable(true);
+      buildLegend();
+      refreshMetadataPanel();
+      return;
+    }
+    showGl(false);
+
     const E = state.enabledLayers;
     const riskGeos = [];
     const allGeos = [];
@@ -125,9 +142,11 @@ async function render(fit = false) {
         else if (state.view === "private") restricted = true;
       }
     }
-    setText("currentSubtitle", state.view === "private"
+    const truncated = [...riskGeos, ...allGeos].some((g) => g && g.truncated);
+    setText("currentSubtitle", (state.view === "private"
       ? (restricted ? "🔒 Private (building-level) — restricted (authorization required)" : "🔒 Private (building-level) view")
-      : "Public view — privacy-preserving aggregated layers");
+      : "Public view — privacy-preserving aggregated layers")
+      + (truncated ? " · ⚠ viewport truncated — zoom in to load all features" : ""));
     if (fit) fitToLayers((riskGeos.length ? riskGeos : allGeos).filter(Boolean));
   } else {
     const fig = FIGURES.find((f) => f.key === state.figure) || FIGURES[0];

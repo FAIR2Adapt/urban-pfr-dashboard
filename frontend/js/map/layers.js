@@ -171,8 +171,6 @@ async function cachedFetch(url) {
   }
 }
 
-// Viewport-aware fetch: fgb-bbox layers ask the server only for the current
-// map extent (C4 route); everything else keeps the plain resource fetch.
 async function fetchLayerData(sourceId, output) {
   const url = resourceUrl(sourceId, output);
   if (!url) return null;
@@ -191,8 +189,6 @@ export async function addRocrateOutput(sourceId, output) {
   const geo = await fetchLayerData(sourceId, output);
   if (!geo) return null;
   const feats = geo.features || [];
-  // Contract-driven: variables + classification come from the RO-Crate via the
-  // dataset contract. Legacy claim-based crates fall back to LEGACY_VARIABLES.
   const V = output.variables && Object.keys(output.variables).length
     ? output.variables
     : LEGACY_VARIABLES;
@@ -257,9 +253,6 @@ export async function addRocrateOutput(sourceId, output) {
 }
 
 function addRiskSurface(geo, feats, V = LEGACY_VARIABLES, cls = {}) {
-  // Class breaks come from the crate's classification (provisional or
-  // validated); data-driven head/tail is only the fallback when a crate
-  // carries none. Property names always resolve through the variable mapping.
   const maKey = V.risk_mobility_accessibility;
   const wbKey = V.risk_wellbeing;
   const p0 = feats[0]?.properties || {};
@@ -290,9 +283,6 @@ function addRiskSurface(geo, feats, V = LEGACY_VARIABLES, cls = {}) {
     minY = Math.min(minY, c[1]); maxY = Math.max(maxY, c[1]);
   }
 
-  // Draw polygons directly (no Voronoi) when either:
-  //  - the layer is a small set of real building footprints (paper replication), or
-  //  - the layer is pre-aggregated cells (HEALPix / choropleth) computed once using package
   const FOOTPRINT_MAX = 3000;
   const isPolygon = /Polygon/.test(feats[0]?.geometry?.type || "");
   const footprintMode = isPolygon && (aggregated || feats.length <= FOOTPRINT_MAX);
@@ -322,10 +312,6 @@ function addRiskSurface(geo, feats, V = LEGACY_VARIABLES, cls = {}) {
     return;
   }
 
-  // FDO check + validation
-  // Footprint , aggregated-cell , fallback render, colored by PFR.
-  //  - real building footprints: draw ALL buildings (small input data)
-  //  - aggregated cells (HEALPix/choropleth): draw ONLY hotspot cells
   track(
     L.geoJSON(geo, {
       filter: (f) => (aggregated ? keep(f.properties) : footprintMode || keep(f.properties)),
