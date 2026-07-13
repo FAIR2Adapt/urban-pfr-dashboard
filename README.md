@@ -116,7 +116,7 @@ Then register it in `backend/adapters/registry.py` and reference
 `"adapter": "my-source"` from a source. Run
 `python scripts/check_dashboard_contract.py` to confirm the shape.
 
-## Nest steps
+## Next steps
 
 The architecture is prepared for the next integration steps: adoption of the final FDO metadata as it becomes complete, consolidation of classification
 thresholds following scientific validation, and a policy-based refinement of access
