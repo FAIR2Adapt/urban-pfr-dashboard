@@ -1,19 +1,26 @@
 {
-  "defaultSource": "hamburg-rocrate-local",
+  "defaultSource": "hamburg-healpix-sample",
   "sources": [
     {
-      "id": "hamburg-rocrate-local",
-      "label": "Hamburg RO-Crate local output",
+      "id": "hamburg-healpix-sample",
+      "label": "Hamburg — public HEALPix sample ( output subset)",
       "adapter": "rocrate-output",
       "enabled": true,
+      "note": "Demo fixture , Pending data-owner and validation approval for publication .",
       "locator": {
         "type": "local-path",
-        "value": "test-data/hamburg-rocrate"
-      },
-      "expectedResources": {
-        "riskMap": { "format": "geojson", "required": true },
-        "boundaries": { "format": "geojson", "required": false },
-        "metadata": { "format": "ro-crate-json", "required": true }
+        "value": "examples/hamburg-healpix-sample"
+      }
+    },
+    {
+      "id": "hamburg-run-local",
+      "label": "Hamburg — full run output (local, not committed)",
+      "adapter": "rocrate-output",
+      "enabled": false,
+      "note": "Template: point 'value' at a real urban_pfr run output directory that contains ro-crate-metadata.json (e.g. under test-data/, which is gitignored), then set enabled=true.",
+      "locator": {
+        "type": "local-path",
+        "value": "test-data/hamburg-run"
       }
     }
   ]

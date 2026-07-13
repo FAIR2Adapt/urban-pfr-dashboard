@@ -33,3 +33,6 @@ dashboard_dataset.json
 
 
 /tests/
+/examples/
+# fixture generator kept local until data-owner approval for publishing samples
+scripts/make_public_fixture.py
