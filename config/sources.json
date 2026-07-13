@@ -17,7 +17,7 @@
       "label": "Hamburg — full run output (local, not committed)",
       "adapter": "rocrate-output",
       "enabled": false,
-      "note": "Template: point 'value' at a real urban_pfr run output directory that contains ro-crate-metadata.json (e.g. under test-data/, which is gitignored), then set enabled=true.",
+      "note": "Template: point 'value' at a urban_pfr run output directory that contains ro-crate-metadata.json (e.g. under test-data/, which is gitignored and pending for public view validation), then set enabled=true.",
       "locator": {
         "type": "local-path",
         "value": "test-data/hamburg-run"

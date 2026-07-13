@@ -120,9 +120,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         return self._serve_file_bytes(target, ctype)
 
     def _serve_file_bytes(self, target, ctype):
-        """Full (200) or partial (206) file response. Range is generic HTTP —
-        implemented for all files so PMTiles needs nothing special later —
-        and streams in chunks so large private FGB/GPKG never load into RAM."""
+        #Full (200) or partial (206) file response.
         try:
             size = target.stat().st_size
         except OSError as exc:
@@ -168,7 +166,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                     self.wfile.write(chunk)
                     remaining -= len(chunk)
         except (BrokenPipeError, ConnectionResetError):
-            pass  # client hung up mid-transfer (normal for tile/range clients)
+            pass  # client hung up mid-transfer 
 
     def _serve_fgb_bbox(self, target, query):
         """Viewport read of a FlatGeobuf: return only the features intersecting

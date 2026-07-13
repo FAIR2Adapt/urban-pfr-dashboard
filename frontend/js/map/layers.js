@@ -12,9 +12,8 @@ import {
   classIndex,
 } from "./colors.js";
 
-// LEGACY-COMPAT ONLY: variable mapping for old claim-based demo crates that
-// carry no variableMapping. Data-product crates (urban-pfr/v4) always provide
-// `output.variables` from RO-Crate metadata — these names are never used then.
+// LEGACY-COMPAT ONLY: variable mapping for old claim-based demo
+// #TODO remove these names might not be used then after final metadata.
 const LEGACY_VARIABLES = {
   risk_mobility_accessibility: "smoothed_RIMA",
   risk_wellbeing: "smoothed_RIWB",
@@ -25,7 +24,7 @@ const LEGACY_VARIABLES = {
   aggregation_count: "n_buildings",
 };
 
-// Hard cap mirroring the server-side FGB bbox limit.
+// TODO check this final Hard cap mirroring the server-side FGB bbox limit.
 const BBOX_LIMIT = 20000;
 
 const boundariesData = () => state.dataset?.layers?.boundaries?.data || null;
