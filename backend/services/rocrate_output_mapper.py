@@ -17,6 +17,17 @@ ROLE_BY_KEY = {
     "socialVulnerability": "social-vulnerability-background",
     "vulnerabilityDrivers": "vulnerability-drivers-background",
     "focusAreas": "focus-area-outline",
+    # private (building-level) 
+    "buildingsRisk": "private-building-risk-layer",
+    "statUnits": "private-statistical-units-layer",
+}
+
+# a public layer key -> its private-tier counterpart 
+PRIVATE_KEY = {
+    "riskMap": "buildingsRisk",
+    "socialVulnerability": "statUnits",
+    "vulnerabilityDrivers": "statUnits",
+    "boundaryOutline": "statUnits",
 }
 
 @dataclass
@@ -181,6 +192,13 @@ class ROCrateOutputMapper:
         dashboard_views = self._build_dashboard_views(layers)
         ui = self._build_ui(layers, dashboard_views)
 
+        # TODO FDO policy.
+        pub = [k for k in ("riskMap", "socialVulnerability", "vulnerabilityDrivers", "boundaryOutline") if k in layers]
+        priv = [k for k in ("buildingsRisk", "statUnits") if k in layers]
+        views = {"public": {"label": "Public", "layers": pub}}
+        if priv:
+            views["private"] = {"label": "Private (building-level)", "layers": priv, "requiresTier": "private"}
+
         dataset = {
             "id": dataset_id,
             "label": metadata.get("title") or dataset_id,
@@ -188,6 +206,8 @@ class ROCrateOutputMapper:
             "metadata": metadata,
             "claims": claims,
             "layers": layers,
+            "views": views,
+            "allowedViews": ["public"],
             "dashboardViews": dashboard_views,
             "figures": figures,
             "ui": ui,
@@ -322,6 +342,8 @@ class ROCrateOutputMapper:
                 "encodingFormat": entity.get("encodingFormat"),
                 "type": self._types(entity),
                 "localPath": self._resolve_local(fid, track_missing=True),
+                "accessTier": entity.get("accessTier"),
+                "conditionsOfAccess": entity.get("conditionsOfAccess"),
             })
         return files
 
@@ -410,13 +432,22 @@ class ROCrateOutputMapper:
         return asdict(summary)
 
     def _map_layers(self, outputs: list) -> dict:
-        """Classify outputs into explicit layer roles (one slot per role)."""
+        """Classify outputs into explicit layer roles (one slot per role).
+
+        Outputs whose source_url is under a private/ tier are routed to their
+        private-tier key (buildingsRisk / statUnits) so the public and private
+        risk layers can coexist (public HEALPix + private building-level).
+        """
         chosen: dict = {}
         for out in outputs:
             key = self._classify_layer(out.get("label"), out.get("fields") or [])
             if key is None:
                 self._add_unmapped(out, "no matching layer role")
-            elif key not in chosen:
+                continue
+            is_private = "/private/" in (out.get("sourceUrl") or "")
+            if is_private:
+                key = PRIVATE_KEY.get(key, key)
+            if key not in chosen:
                 chosen[key] = out
 
         layers = {key: self._build_layer(out, ROLE_BY_KEY[key]) for key, out in chosen.items()}

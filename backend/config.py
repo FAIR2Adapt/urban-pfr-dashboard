@@ -19,6 +19,10 @@ class SourcesConfig:
         return self._data.get("defaultSource")
 
     @property
+    def deployment(self):
+        return self._data.get("deployment", "public")
+
+    @property
     def sources(self) -> list[dict]:
         return self._data.get("sources", [])
 

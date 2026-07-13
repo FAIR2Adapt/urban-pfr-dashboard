@@ -23,7 +23,9 @@ def load_dataset_dict(config: SourcesConfig, source_id: str) -> dict:
             status=409,
             details={"adapter": source.get("adapter"), "note": source.get("note")},
         )
-    return get_adapter(source.get("adapter")).load_dataset(source, context={"root": config.root})
+    return get_adapter(source.get("adapter")).load_dataset(
+        source, context={"root": config.root, "deployment": config.deployment}
+    )
 
 def get_dataset(config: SourcesConfig, source_id: str):
     try:

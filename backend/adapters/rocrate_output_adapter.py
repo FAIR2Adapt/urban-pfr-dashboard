@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from urllib.parse import quote, unquote, urlsplit
 
 from ..services.rocrate_output_mapper import ROCrateOutputMapper
 from .base import DataSourceAdapter, DatasetLoadError
@@ -53,6 +54,12 @@ class ROCrateOutputAdapter(DataSourceAdapter):
             )
 
         _localize_resource_urls(dataset, source_id, package_root)
+
+        # Authorization: internal deployment (or, later, an FDO Resolver policy
+        # decision) unlocks the private view. Public deployment stays public-only.
+        if context.get("deployment") == "internal" and (dataset.get("views") or {}).get("private"):
+            dataset["allowedViews"] = ["public", "private"]
+
         return dataset
 
 def _localize_resource_urls(dataset: dict, source_id: str, package_root: Path) -> None:
@@ -60,9 +67,26 @@ def _localize_resource_urls(dataset: dict, source_id: str, package_root: Path) -
     def served(ref):
         if not ref:
             return None
-        name = os.path.basename(str(ref))
-        if name and (package_root / name).exists():
-            return f"/api/sources/{source_id}/files/{name}"
+        value = str(ref).strip()
+        parsed = urlsplit(value)
+        path = parsed.path if parsed.scheme or parsed.netloc else value.split("?", 1)[0].split("#", 1)[0]
+        rel = unquote(path).lstrip("/")
+        if rel.startswith("./"):
+            rel = rel[2:]
+        candidates = []
+        if rel and "\\" not in rel and ".." not in rel.split("/"):
+            candidates.append(rel)
+        name = os.path.basename(rel.rstrip("/"))
+        if not name:
+            return None
+        candidates.extend((name, f"public/{name}", f"private/{name}"))
+        seen = set()
+        for candidate in candidates:
+            if candidate in seen:
+                continue
+            seen.add(candidate)
+            if (package_root / candidate).exists():
+                return f"/api/sources/{source_id}/files/{quote(candidate, safe='/')}"
         return None
 
     for layer in (dataset.get("layers") or {}).values():

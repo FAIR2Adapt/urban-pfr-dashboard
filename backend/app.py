@@ -51,8 +51,8 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         parts = [p for p in parsed.path.split("/") if p]
 
-        if len(parts) == 5 and parts[0] == "api" and parts[1] == "sources" and parts[3] == "files":
-            self._serve_source_file(parts[2], unquote(parts[4]))
+        if len(parts) >= 5 and parts[0] == "api" and parts[1] == "sources" and parts[3] == "files":
+            self._serve_source_file(parts[2], unquote("/".join(parts[4:])))
 
         elif len(parts) == 4 and parts[0] == "api" and parts[1] == "sources" and parts[3] == "proxy":
             self._proxy_source_url(parts[2], parse_qs(parsed.query).get("url", [""])[0])
@@ -70,23 +70,35 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(payload)
 
+    def _authorize(self, source_id, rel):
+        #ODRL policy. For now: internal deployment is allowed.
+        return self._config.deployment == "internal"
+
     def _serve_source_file(self, source_id, filename):
         """Serve one resource file from a source's package root.
-
         Only files that exist directly inside the configured package root are
-        served — no path traversal, no arbitrary filesystem access.
+        served.
         """
         source = self._config.get(source_id)
         if not source:
             return self._send_json(404, {"error": f"Unknown source id: {source_id}"})
-        if not filename or "/" in filename or "\\" in filename or filename in (".", ".."):
+        # Subpaths (public/…, private/…) are allowed
+        if not filename or "\\" in filename or ".." in filename.split("/"):
             return self._send_json(403, {"error": "invalid filename"})
         package_root = (self._config.root / source.get("locator", {}).get("value", "")).resolve()
         target = (package_root / filename).resolve()
         try:
-            target.relative_to(package_root)
+            rel = target.relative_to(package_root)
         except ValueError:
             return self._send_json(403, {"error": "path outside package root"})
+        # TODO FDO policy-controlled access.
+        # need to connect to ODRL policy
+        if rel.parts and rel.parts[0] == "private":
+            if not self._authorize(source_id, rel):
+                return self._send_json(403, {
+                    "error": "restricted",
+                    "reason": "private tier — policy-controlled access (ODRL); authorization required",
+                })
         if not target.is_file():
             return self._send_json(404, {"error": f"File not found: {filename}"})
         ctype = (
