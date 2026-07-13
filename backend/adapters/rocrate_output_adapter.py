@@ -92,6 +92,15 @@ def _localize_resource_urls(dataset: dict, source_id: str, package_root: Path) -
     for layer in (dataset.get("layers") or {}).values():
         if isinstance(layer, dict):
             layer["localPath"] = served(layer.get("localPath") or layer.get("sourceUrl"))
+            # data-product crates: every distribution (fgb/gpkg/pmtiles) gets a
+            # served URL so the frontend can render or offer it for download.
+            for dist in layer.get("distributions") or []:
+                if isinstance(dist, dict) and dist.get("path"):
+                    dist["path"] = served(dist["path"])
+
+    for f in ((dataset.get("metadata") or {}).get("files") or []):
+        if isinstance(f, dict) and f.get("localPath"):
+            f["localPath"] = served(f["localPath"])
 
     for figure in dataset.get("figures") or []:
         if isinstance(figure, dict):

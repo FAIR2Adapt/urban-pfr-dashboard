@@ -30,3 +30,6 @@ dashboard_dataset.json
 # Local data — RO-Crate / V1 - Regarding provate demo knowledge loom records GeoJSON inputs are local 
 #Will use API in next versions
 /test-data/
+
+
+/tests/

@@ -22,13 +22,23 @@ ROLE_BY_KEY = {
     "statUnits": "private-statistical-units-layer",
 }
 
-# a public layer key -> its private-tier counterpart 
+# a public layer key -> its private-tier counterpart
 PRIVATE_KEY = {
     "riskMap": "buildingsRisk",
     "socialVulnerability": "statUnits",
     "vulnerabilityDrivers": "statUnits",
     "boundaryOutline": "statUnits",
 }
+
+PUBLIC_LAYER_KEYS = ("riskMap", "socialVulnerability", "vulnerabilityDrivers", "boundaryOutline")
+PRIVATE_LAYER_KEYS = ("buildingsRisk", "statUnits")
+
+# Data-product crate (profile urban-pfr-dataproduct/0.1): formats the dashboard
+RENDERABLE_FORMATS = (
+    "application/geo+json",
+    "application/flatgeobuf",
+    "application/vnd.pmtiles",
+)
 
 @dataclass
 class WorkflowSummary:
@@ -177,7 +187,16 @@ class ROCrateOutputMapper:
         return None
 
     def to_dashboard_dataset(self, dataset_id: str = "hamburg-rocrate-derived") -> dict:
-        """Parse the package and return one normalized dashboard dataset dict."""
+        """Parse the package and return one normalized dashboard dataset dict.
+
+        Two crate flavours are supported:
+        - data-product crates (profile urban-pfr-dataproduct/0.1): layers are
+          declared explicitly via dashboardRole/variableMapping — no guessing.
+        - legacy claim-based crates: kept as fallback for old/demo packages.
+        """
+        if self._is_dataproduct_crate():
+            return self._map_dataproduct(dataset_id)
+
         root = self._index.get("./", {})
         metadata = self._build_metadata(root)
         claims = self._build_claims()
@@ -264,6 +283,227 @@ class ROCrateOutputMapper:
                 f"unmapped output '{out.get('label') or out.get('sourceUrl') or '?'}' "
                 f"(claim {out.get('claim')})"
             )
+        return issues
+
+    # ------------------------------------------------------------------
+    #TODO the current development use following metadata need to be update using
+    # final FDO
+    # It use following metadata: dashboardRole, variableMapping,
+    # accessTier, renderingStrategy, sourceLayer, classification 
+    # ------------------------------------------------------------------
+
+    def _dataproduct_entities(self) -> list:
+        root = self._index.get("./", {})
+        out = []
+        for ref in JsonLdHelper.as_list(root.get("hasPart")):
+            fid = ref.get("@id") if isinstance(ref, dict) else ref
+            entity = self._index.get(fid)
+            if isinstance(entity, dict) and entity.get("dashboardRole"):
+                out.append(entity)
+        return out
+
+    def _is_dataproduct_crate(self) -> bool:
+        root = self._index.get("./", {})
+        return bool(root.get("fieldSchema")) and bool(self._dataproduct_entities())
+
+    def _map_dataproduct(self, dataset_id: str) -> dict:
+        root = self._index.get("./", {})
+        self._diagnostics["mode"] = "dataproduct-crate"
+
+        layers: dict = {}
+        for product in self._dataproduct_entities():
+            distributions = self._product_distributions(product)
+            renderable = next(
+                (d for d in distributions
+                 if d.get("format") in RENDERABLE_FORMATS and not d.get("download")),
+                None,
+            )
+            variables = {
+                pv.get("name"): pv.get("value")
+                for pv in JsonLdHelper.as_list(product.get("variableMapping"))
+                if isinstance(pv, dict) and pv.get("name") and pv.get("value")
+            }
+            classification = self._product_classification(product)
+
+            for key in JsonLdHelper.as_list(product.get("dashboardRole")):
+                if key not in ROLE_BY_KEY:
+                    self._warn(f"unknown dashboardRole '{key}' in {product.get('@id')}")
+                    continue
+                layers[key] = {
+                    "type": "vector",
+                    "role": ROLE_BY_KEY[key],
+                    "label": product.get("name"),
+                    "accessTier": product.get("accessTier"),
+                    "renderingStrategy": product.get("renderingStrategy"),
+                    "sourceLayer": product.get("sourceLayer"),
+                    "crs": product.get("crs"),
+                    "geometryType": product.get("geometryType"),
+                    "featureCount": product.get("featureCount"),
+                    "outputFootprintBbox": product.get("outputFootprintBbox"),
+                    "conditionsOfAccess": product.get("conditionsOfAccess"),
+                    "variables": variables,
+                    "fields": sorted(set(variables.values())),
+                    "classification": classification,
+                    "distributions": distributions,
+                    "sourceUrl": None,
+                    "localPath": renderable.get("path") if renderable else None,
+                    "style": {},
+                }
+                if not renderable:
+                    self._warn(
+                        f"product '{product.get('@id')}' has no renderable "
+                        f"distribution (formats: {[d.get('format') for d in distributions]})"
+                    )
+
+        pub = [k for k in PUBLIC_LAYER_KEYS if k in layers]
+        priv = [k for k in PRIVATE_LAYER_KEYS if k in layers]
+        views = {"public": {"label": "Public", "layers": pub}}
+        if priv:
+            views["private"] = {"label": "Private (building-level)", "layers": priv,
+                                "requiresTier": "private"}
+
+        metadata = self._build_metadata(root)
+        metadata["files"] = self._dataproduct_files()
+        metadata["provenance"] = self._dataproduct_provenance()
+
+        dashboard_views = self._build_dashboard_views(layers)
+        ui = self._dataproduct_ui(layers, dashboard_views)
+
+        conforms = root.get("conformsTo")
+        dataset = {
+            "id": dataset_id,
+            "label": metadata.get("title") or dataset_id,
+            "sourceType": "rocrate-output",
+            "profile": conforms.get("@id") if isinstance(conforms, dict) else conforms,
+            "fieldSchema": root.get("fieldSchema"),
+            "metadata": metadata,
+            "claims": [],
+            "layers": layers,
+            "views": views,
+            "allowedViews": ["public"],
+            "dashboardViews": dashboard_views,
+            "figures": [],
+            "ui": ui,
+            "diagnostics": self._diagnostics,
+        }
+        for issue in self._validate_dataproduct(dataset):
+            self._warn(issue)
+        return dataset
+
+    def _product_distributions(self, product: dict) -> list:
+        distributions = []
+        for ref in JsonLdHelper.as_list(product.get("distribution")):
+            fid = ref.get("@id") if isinstance(ref, dict) else ref
+            entity = self._index.get(fid, {})
+            if not fid:
+                continue
+            dist = {
+                "path": fid,
+                "format": entity.get("encodingFormat"),
+                "contentSize": entity.get("contentSize"),
+                "download": bool(entity.get("download")),
+                "accessTier": entity.get("accessTier"),
+            }
+            if not (self.package_root / fid).exists():
+                self._diagnostics["missingFiles"].append(fid)
+                dist["missing"] = True
+            distributions.append(dist)
+        return distributions
+
+    def _product_classification(self, product: dict) -> dict:
+        ref = product.get("classification")
+        entity = self._deref(ref) if ref else None
+        if not isinstance(entity, dict):
+            return {}
+        return {
+            k: v for k, v in entity.items()
+            if k in ("method", "thresholdStatus")
+            or k.startswith("breaks_")
+        }
+
+    def _dataproduct_files(self) -> list:
+        """metadata.files = every distribution File (for the access panel and
+        download links) — not the logical product entities."""
+        files = []
+        for entity in self._by_type("File"):
+            fid = entity.get("@id")
+            if not fid or fid == "ro-crate-metadata.json":
+                continue
+            files.append({
+                "id": fid,
+                "name": entity.get("name", fid),
+                "encodingFormat": entity.get("encodingFormat"),
+                "type": self._types(entity),
+                "localPath": fid if (self.package_root / fid).exists() else None,
+                "accessTier": entity.get("accessTier"),
+                "conditionsOfAccess": entity.get("conditionsOfAccess"),
+                "download": bool(entity.get("download")),
+            })
+        return files
+
+    def _dataproduct_provenance(self) -> dict:
+        action = next((e for e in self._by_type("CreateAction")), None)
+        if not action:
+            return {}
+        software = self._deref(action.get("instrument"))
+        params = {
+            pv.get("name"): pv.get("value")
+            for pv in JsonLdHelper.as_list(action.get("additionalProperty"))
+            if isinstance(pv, dict) and pv.get("name")
+        }
+        return {
+            "software": software.get("name") if isinstance(software, dict) else None,
+            "softwareVersion": software.get("softwareVersion") if isinstance(software, dict) else None,
+            "endTime": action.get("endTime"),
+            "parameters": params,
+        }
+
+    def _dataproduct_ui(self, layers: dict, dashboard_views: dict) -> dict:
+        """UI defaults resolved from variableMapping — no legacy field names."""
+        risk_vars = (layers.get("riskMap") or {}).get("variables") or {}
+        default_risk_fields = [
+            risk_vars[k]
+            for k in ("risk_mobility_accessibility", "risk_wellbeing")
+            if k in risk_vars
+        ]
+        background_fields: list = []
+        for key in ("socialVulnerability", "vulnerabilityDrivers"):
+            for f in ((layers.get(key) or {}).get("variables") or {}).values():
+                if f not in background_fields and f not in ("healpix_id",):
+                    background_fields.append(f)
+
+        available = [vid for vid, v in dashboard_views.items() if v.get("available")]
+        default_view = "risk-hotspots" if "risk-hotspots" in available else (
+            available[0] if available else "risk-hotspots"
+        )
+        return {
+            "defaultDashboardView": default_view,
+            "defaultRiskFields": default_risk_fields,
+            "availableBackgroundFields": background_fields,
+            "availableDashboardViews": available,
+        }
+
+    def _validate_dataproduct(self, dataset: dict) -> list[str]:
+        issues: list[str] = []
+        layers = dataset.get("layers") or {}
+        if not (dataset.get("metadata") or {}).get("title"):
+            issues.append("metadata.title is missing")
+        risk = layers.get("riskMap")
+        if not risk:
+            issues.append("riskMap layer is missing")
+        else:
+            if not risk.get("localPath"):
+                issues.append("riskMap has no renderable distribution")
+            for semantic in ("risk_mobility_accessibility", "risk_wellbeing"):
+                if semantic not in (risk.get("variables") or {}):
+                    issues.append(f"riskMap.variableMapping is missing '{semantic}'")
+            cls = risk.get("classification") or {}
+            if not cls.get("thresholdStatus"):
+                issues.append("riskMap.classification.thresholdStatus is missing")
+        for key in PRIVATE_LAYER_KEYS:
+            layer = layers.get(key)
+            if layer and layer.get("accessTier") != "private":
+                issues.append(f"layer '{key}' should be accessTier=private")
         return issues
 
     def _build_metadata(self, root: dict) -> dict:
