@@ -5,10 +5,14 @@ from __future__ import annotations
 import http.server
 import json
 import mimetypes
+import re
 from functools import partial
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 from urllib.request import Request, urlopen
+
+# Hard server-side cap for bbox-filtered FGB responses (viewport reads).
+FGB_BBOX_LIMIT = 20000
 
 from .adapters.base import AdapterError
 from .api import routes
@@ -52,7 +56,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         parts = [p for p in parsed.path.split("/") if p]
 
         if len(parts) >= 5 and parts[0] == "api" and parts[1] == "sources" and parts[3] == "files":
-            self._serve_source_file(parts[2], unquote("/".join(parts[4:])))
+            self._serve_source_file(parts[2], unquote("/".join(parts[4:])), parse_qs(parsed.query))
 
         elif len(parts) == 4 and parts[0] == "api" and parts[1] == "sources" and parts[3] == "proxy":
             self._proxy_source_url(parts[2], parse_qs(parsed.query).get("url", [""])[0])
@@ -74,10 +78,11 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         #ODRL policy. For now: internal deployment is allowed.
         return self._config.deployment == "internal"
 
-    def _serve_source_file(self, source_id, filename):
+    def _serve_source_file(self, source_id, filename, query=None):
         """Serve one resource file from a source's package root.
         Only files that exist directly inside the configured package root are
-        served.
+        served. Supports HTTP Range (any file — needed by PMTiles clients) and
+        ?bbox= viewport filtering for FlatGeobuf.
         """
         source = self._config.get(source_id)
         if not source:
@@ -93,6 +98,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             return self._send_json(403, {"error": "path outside package root"})
         # TODO FDO policy-controlled access.
         # need to connect to ODRL policy
+        # NOTE: this tier check MUST stay before any read (full, Range or bbox).
         if rel.parts and rel.parts[0] == "private":
             if not self._authorize(source_id, rel):
                 return self._send_json(403, {
@@ -101,20 +107,105 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                 })
         if not target.is_file():
             return self._send_json(404, {"error": f"File not found: {filename}"})
+
+        query = query or {}
+        if target.suffix.lower() == ".fgb" and "bbox" in query:
+            return self._serve_fgb_bbox(target, query)
+
         ctype = (
             self.extensions_map.get(target.suffix.lower())
             or mimetypes.guess_type(str(target))[0]
             or "application/octet-stream"
         )
+        return self._serve_file_bytes(target, ctype)
+
+    def _serve_file_bytes(self, target, ctype):
+        """Full (200) or partial (206) file response. Range is generic HTTP —
+        implemented for all files so PMTiles needs nothing special later —
+        and streams in chunks so large private FGB/GPKG never load into RAM."""
         try:
-            data = target.read_bytes()
+            size = target.stat().st_size
         except OSError as exc:
             return self._send_json(500, {"error": str(exc)})
-        self.send_response(200)
+
+        start, end, status = 0, size - 1, 200
+        range_header = (self.headers.get("Range") or "").strip()
+        if range_header.startswith("bytes="):
+            spec = range_header[6:].split(",")[0].strip()  # single range only
+            m = re.match(r"^(\d*)-(\d*)$", spec)
+            if not m or (not m.group(1) and not m.group(2)):
+                return self._send_json(400, {"error": f"malformed Range: {range_header}"})
+            if m.group(1):
+                start = int(m.group(1))
+                if m.group(2):
+                    end = min(int(m.group(2)), size - 1)
+            else:  # suffix form: bytes=-N (last N bytes)
+                start = max(size - int(m.group(2)), 0)
+            if start >= size or start > end:
+                self.send_response(416)
+                self.send_header("Content-Range", f"bytes */{size}")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            status = 206
+
+        length = end - start + 1
+        self.send_response(status)
         self.send_header("Content-Type", ctype)
-        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Content-Length", str(length))
+        self.send_header("Accept-Ranges", "bytes")
+        if status == 206:
+            self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
         self.end_headers()
-        self.wfile.write(data)
+        try:
+            with target.open("rb") as fh:
+                fh.seek(start)
+                remaining = length
+                while remaining > 0:
+                    chunk = fh.read(min(1 << 20, remaining))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    remaining -= len(chunk)
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # client hung up mid-transfer (normal for tile/range clients)
+
+    def _serve_fgb_bbox(self, target, query):
+        """Viewport read of a FlatGeobuf: return only the features intersecting
+        ?bbox=minx,miny,maxx,maxy as GeoJSON, hard-capped at FGB_BBOX_LIMIT."""
+        raw = (query.get("bbox") or [""])[0]
+        try:
+            minx, miny, maxx, maxy = (float(v) for v in raw.split(","))
+            if not (minx < maxx and miny < maxy):
+                raise ValueError
+        except ValueError:
+            return self._send_json(400, {"error": "invalid bbox; expected minx,miny,maxx,maxy"})
+        try:
+            limit = int((query.get("limit") or [str(FGB_BBOX_LIMIT)])[0])
+        except ValueError:
+            return self._send_json(400, {"error": "invalid limit"})
+        limit = max(1, min(limit, FGB_BBOX_LIMIT))  # server-side hard cap
+
+        try:
+            import pyogrio  # lazy: only bbox-filtered FGB reads need the geo stack
+        except ImportError:
+            return self._send_json(501, {
+                "error": "bbox filtering requires pyogrio (see requirements.txt)",
+            })
+        try:
+            df = pyogrio.read_dataframe(
+                str(target), bbox=(minx, miny, maxx, maxy), max_features=limit + 1
+            )
+        except Exception as exc:
+            return self._send_json(500, {"error": f"fgb read failed: {exc}"})
+
+        truncated = len(df) > limit
+        if truncated:
+            df = df.iloc[:limit]
+        geo = json.loads(df.to_json())
+        geo["truncated"] = truncated
+        geo["featureCount"] = len(df)
+        self._send_json(200, geo)
 
     def _proxy_source_url(self, source_id, url):
         """Fetch a remote resource server-side to dodge browser CORS.

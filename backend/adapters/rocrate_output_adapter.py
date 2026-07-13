@@ -55,8 +55,9 @@ class ROCrateOutputAdapter(DataSourceAdapter):
 
         _localize_resource_urls(dataset, source_id, package_root)
 
-        # Authorization: internal deployment (or, later, an FDO Resolver policy
-        # decision) unlocks the private view. Public deployment stays public-only.
+        # Authorization: internal deployment 
+        # #TODO plugable for FDO Resolver policy decision . 
+        # Public deployment stays public-only. #TODO need the clip and treshold check
         if context.get("deployment") == "internal" and (dataset.get("views") or {}).get("private"):
             dataset["allowedViews"] = ["public", "private"]
 
@@ -93,7 +94,7 @@ def _localize_resource_urls(dataset: dict, source_id: str, package_root: Path) -
         if isinstance(layer, dict):
             layer["localPath"] = served(layer.get("localPath") or layer.get("sourceUrl"))
             # data-product crates: every distribution (fgb/gpkg/pmtiles) gets a
-            # served URL so the frontend can render or offer it for download.
+            # served URL so the frontend can render.
             for dist in layer.get("distributions") or []:
                 if isinstance(dist, dict) and dist.get("path"):
                     dist["path"] = served(dist["path"])
