@@ -10,8 +10,23 @@ import {
   PFR_GRID,
   headTailBreaks,
   classIndex,
-  FIXED_PFR_BREAKS,
 } from "./colors.js";
+
+// LEGACY-COMPAT ONLY: variable mapping for old claim-based demo crates that
+// carry no variableMapping. Data-product crates (urban-pfr/v4) always provide
+// `output.variables` from RO-Crate metadata — these names are never used then.
+const LEGACY_VARIABLES = {
+  risk_mobility_accessibility: "smoothed_RIMA",
+  risk_wellbeing: "smoothed_RIWB",
+  social_vulnerability: "SVF",
+  sensitivity: "Sensitivity",
+  coping_capacity: "CC",
+  cell_id: "healpix_id",
+  aggregation_count: "n_buildings",
+};
+
+// Hard cap mirroring the server-side FGB bbox limit.
+const BBOX_LIMIT = 20000;
 
 const boundariesData = () => state.dataset?.layers?.boundaries?.data || null;
 const riskData = () => state.dataset?.layers?.riskMap?.data || null;
@@ -157,27 +172,54 @@ async function cachedFetch(url) {
   }
 }
 
+// Viewport-aware fetch: fgb-bbox layers ask the server only for the current
+// map extent (C4 route); everything else keeps the plain resource fetch.
+async function fetchLayerData(sourceId, output) {
+  const url = resourceUrl(sourceId, output);
+  if (!url) return null;
+  const strategy = output.renderingStrategy || "";
+  if (strategy.startsWith("fgb-bbox") && state.map) {
+    const b = state.map.getBounds();
+    const bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]
+      .map((v) => v.toFixed(5))
+      .join(",");
+    return cachedFetch(`${url}?bbox=${bbox}&limit=${BBOX_LIMIT}`);
+  }
+  return cachedFetch(url);
+}
+
 export async function addRocrateOutput(sourceId, output) {
-  const geo = await cachedFetch(resourceUrl(sourceId, output));
+  const geo = await fetchLayerData(sourceId, output);
   if (!geo) return null;
   const feats = geo.features || [];
-  const fields = output.fields || [];
-  const hasRisk =
-    fields.includes("smoothed_RIMA") ||
-    feats.some((f) => f.properties && "smoothed_RIMA" in f.properties);
+  // Contract-driven: variables + classification come from the RO-Crate via the
+  // dataset contract. Legacy claim-based crates fall back to LEGACY_VARIABLES.
+  const V = output.variables && Object.keys(output.variables).length
+    ? output.variables
+    : LEGACY_VARIABLES;
+  const cls = output.classification || {};
+  const role = output.role || "";
+  const hasVar = (name) =>
+    V[name] &&
+    ((output.fields || []).includes(V[name]) ||
+      feats.some((f) => f.properties && V[name] in f.properties));
 
-  if (hasRisk) {
-    addRiskSurface(geo, feats);
-  } else if (fields.includes("Sensitivity") && fields.includes("CC")) {
-
-    const sB = headTailBreaks(feats.map((f) => +f.properties?.Sensitivity || 0), 2);
-    const cB = headTailBreaks(feats.map((f) => +f.properties?.CC || 0), 2);
+  if (role.includes("risk-layer") || hasVar("risk_mobility_accessibility")) {
+    addRiskSurface(geo, feats, V, cls);
+  } else if (role.includes("drivers") || (hasVar("sensitivity") && hasVar("coping_capacity"))) {
+    const sKey = V.sensitivity, cKey = V.coping_capacity;
+    const sB = cls.breaks_sensitivity?.length
+      ? cls.breaks_sensitivity
+      : headTailBreaks(feats.map((f) => +f.properties?.[sKey] || 0), 2);
+    const cB = cls.breaks_coping?.length
+      ? cls.breaks_coping
+      : headTailBreaks(feats.map((f) => +f.properties?.[cKey] || 0), 2);
     track(
       L.geoJSON(geo, {
         style: (f) => ({
           fillColor: svBivarColor(
-            classIndex(+f.properties?.Sensitivity || 0, sB),
-            classIndex(+f.properties?.CC || 0, cB)
+            classIndex(+f.properties?.[sKey] || 0, sB),
+            classIndex(+f.properties?.[cKey] || 0, cB)
           ),
           color: "#9e9e9e",
           weight: 0.4,
@@ -187,12 +229,15 @@ export async function addRocrateOutput(sourceId, output) {
         onEachFeature: (f, l) => l.bindPopup(genericPopup(f, output.label)),
       })
     );
-  } else if (fields.includes("SVF")) {
-    const svB = headTailBreaks(feats.map((f) => +f.properties?.SVF || 0));
+  } else if (role.includes("social-vulnerability") || hasVar("social_vulnerability")) {
+    const svKey = V.social_vulnerability;
+    const svB = cls.breaks_sv?.length
+      ? cls.breaks_sv
+      : headTailBreaks(feats.map((f) => +f.properties?.[svKey] || 0));
     track(
       L.geoJSON(geo, {
         style: (f) => ({
-          fillColor: svGreyColor(classIndex(+f.properties?.SVF || 0, svB)),
+          fillColor: svGreyColor(classIndex(+f.properties?.[svKey] || 0, svB)),
           color: "#9e9e9e",
           weight: 0.4,
           opacity: 0.6,
@@ -212,19 +257,27 @@ export async function addRocrateOutput(sourceId, output) {
   return geo;
 }
 
-function addRiskSurface(geo, feats) {
-  // Aggregated (HEALPix/choropleth) cells use FIXED shared thresholds
-  // raw building layers use data-driven head/tail.
+function addRiskSurface(geo, feats, V = LEGACY_VARIABLES, cls = {}) {
+  // Class breaks come from the crate's classification (provisional or
+  // validated); data-driven head/tail is only the fallback when a crate
+  // carries none. Property names always resolve through the variable mapping.
+  const maKey = V.risk_mobility_accessibility;
+  const wbKey = V.risk_wellbeing;
   const p0 = feats[0]?.properties || {};
-  const aggregated = "healpix_id" in p0 || "n_buildings" in p0;
-  const maBreaks = aggregated ? FIXED_PFR_BREAKS : headTailBreaks(feats.map((f) => +f.properties?.smoothed_RIMA || 0));
-  const wbBreaks = aggregated ? FIXED_PFR_BREAKS : headTailBreaks(feats.map((f) => +f.properties?.smoothed_RIWB || 0));
+  const aggregated =
+    (V.cell_id && V.cell_id in p0) || (V.aggregation_count && V.aggregation_count in p0);
+  const maBreaks = cls.breaks_ma?.length
+    ? cls.breaks_ma
+    : headTailBreaks(feats.map((f) => +f.properties?.[maKey] || 0));
+  const wbBreaks = cls.breaks_wb?.length
+    ? cls.breaks_wb
+    : headTailBreaks(feats.map((f) => +f.properties?.[wbKey] || 0));
   const colorFor = (p) =>
-    PFR_GRID[classIndex(+p?.smoothed_RIWB || 0, wbBreaks)][classIndex(+p?.smoothed_RIMA || 0, maBreaks)];
+    PFR_GRID[classIndex(+p?.[wbKey] || 0, wbBreaks)][classIndex(+p?.[maKey] || 0, maBreaks)];
 
   const keep = (p) =>
-    classIndex(+p?.smoothed_RIMA || 0, maBreaks) > 0 ||
-    classIndex(+p?.smoothed_RIWB || 0, wbBreaks) > 0;
+    classIndex(+p?.[maKey] || 0, maBreaks) > 0 ||
+    classIndex(+p?.[wbKey] || 0, wbBreaks) > 0;
 
   const pts = [];
   const props = [];
@@ -263,7 +316,7 @@ function addRiskSurface(geo, feats) {
         L.polygon(
           clipped.map(([x, y]) => [y, x]),
           { color: col, weight: 0.5, fillColor: col, fillOpacity: 0.8 }
-        ).bindPopup(riskFieldPopup({ properties: props[i] }))
+        ).bindPopup(riskFieldPopup({ properties: props[i] }, V))
       );
     }
     track(L.layerGroup(cells));
@@ -286,7 +339,7 @@ function addRiskSurface(geo, feats) {
       }),
       pointToLayer: (f, ll) =>
         L.circleMarker(ll, { radius: 3, fillColor: colorFor(f.properties), color: "#333", weight: 0.3, fillOpacity: 0.9 }),
-      onEachFeature: (f, l) => l.bindPopup(riskFieldPopup(f)),
+      onEachFeature: (f, l) => l.bindPopup(riskFieldPopup(f, V)),
     })
   );
 }
@@ -343,16 +396,21 @@ function centroidLonLat(geom) {
   return [sx / ring.length, sy / ring.length];
 }
 
-function riskFieldPopup(f) {
+function riskFieldPopup(f, V = LEGACY_VARIABLES) {
   const p = f.properties || {};
-  const num = (v) => (Number.isFinite(+v) ? (+v).toFixed(4) : "–");
+  const num = (v) => (Number.isFinite(+v) ? (+v).toFixed(6) : "–");
+  const cellId = V.cell_id && p[V.cell_id];
+  const nBuild = V.aggregation_count && p[V.aggregation_count];
+  const rows = [
+    [V.risk_mobility_accessibility, num(p[V.risk_mobility_accessibility])],
+    [V.risk_wellbeing, num(p[V.risk_wellbeing])],
+  ];
+  if (nBuild !== undefined && nBuild !== null) rows.push([V.aggregation_count, esc(nBuild)]);
   return `<div style="font-size:12px;min-width:150px">
-    <strong>${esc(p.id || "Building")}</strong>
+    <strong>${esc(p.id || (cellId ? `Cell ${cellId}` : "Building"))}</strong>
     <table style="border-collapse:collapse;width:100%;margin-top:4px">
-      <tr><td style="color:#64748b;padding:1px 4px">smoothed_RIMA</td>
-          <td style="text-align:right;font-weight:600">${num(p.smoothed_RIMA)}</td></tr>
-      <tr><td style="color:#64748b;padding:1px 4px">smoothed_RIWB</td>
-          <td style="text-align:right;font-weight:600">${num(p.smoothed_RIWB)}</td></tr>
+      ${rows.map(([k, v]) => `<tr><td style="color:#64748b;padding:1px 4px">${esc(k)}</td>
+          <td style="text-align:right;font-weight:600">${v}</td></tr>`).join("")}
     </table></div>`;
 }
 

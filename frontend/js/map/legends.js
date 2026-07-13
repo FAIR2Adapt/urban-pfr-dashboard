@@ -59,6 +59,14 @@ function legendPFR() {
   }
   s.appendChild(grid);
   s.appendChild(axisLabel("Well-being", "Low", "High", "Mobility &amp; Accessibility Low High"));
+  // TODO await scientific calibration (from crate).later after author check we can change the note after validation.
+  const status = state.dataset?.layers?.riskMap?.classification?.thresholdStatus || "";
+  if (status.startsWith("provisional")) {
+    const note = mkEl("div");
+    note.style.cssText = "font-size:.68rem;color:#b45309;margin-top:3px";
+    note.textContent = "class thresholds: provisional (pending scientific validation)";
+    s.appendChild(note);
+  }
   return s;
 }
 

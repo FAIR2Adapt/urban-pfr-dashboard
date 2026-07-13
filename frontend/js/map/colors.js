@@ -14,9 +14,9 @@ export const SV_GRID = [
 export const SV_GREYS = ["#FFFFFF", "#D7D7D7", "#AEAEAE", "#8E8E8E"];
 export const SV_LABELS = ["low", "medium", "high", "very high"];
 
-// Fixed, shared PFR class breaks for the PUBLIC/aggregated (HEALPix) layers.
-// # TODO sintific validation for values 
-export const FIXED_PFR_BREAKS = [0.5, 3, 8];
+// PFR class breaks now come from the dataset contract (RO-Crate
+// classification, provisional or validated) removed test hard-coded here.
+// TODO check the final metadata later for these settings
 
 const clamp3 = (v) => Math.min(Math.max(+v || 0, 0), 3);
 

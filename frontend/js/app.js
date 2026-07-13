@@ -14,7 +14,22 @@ async function init() {
   initMap();
   wireBasemap();
   wireMetadataToggle();
+  wireViewportRefetch();
   await loadSources();
+}
+
+// fgb-bbox layers are viewport reads: after a pan/zoom, re-render so the server is asked for the new extent .
+function wireViewportRefetch() {
+  let timer;
+  state.map.on("moveend", () => {
+    const layers = (state.dataset || {}).layers || {};
+    const anyBbox = Object.values(layers).some(
+      (l) => l && (l.renderingStrategy || "").startsWith("fgb-bbox")
+    );
+    if (!anyBbox) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => render(false), 300);
+  });
 }
 
 async function loadSources() {
