@@ -187,6 +187,20 @@ function renderMetadata(ds) {
         .join("")}</ul>`
     : "";
 
+  // FDO public/private tiers (from the crate's hasPart accessTier)
+  const tiered = (md.files || []).filter((f) => f.accessTier);
+  const access = tiered.length
+    ? `<ul style="margin:0;padding-left:16px;font-size:.8rem">${tiered
+        .map((f) => {
+          const priv = f.accessTier === "private";
+          const tag = priv
+            ? `<span title="${esc(f.conditionsOfAccess || "Policy-controlled access")}" style="color:#b45309">🔒 private — restricted</span>`
+            : `<span style="color:#15803d">🔓 public</span>`;
+          return `<li>${esc(f.name || f.id)} — ${tag}</li>`;
+        })
+        .join("")}</ul>`
+    : "";
+
   return `
     <div class="meta-header-row">
       <span class="meta-jsonld-badge">Dataset</span>
@@ -196,6 +210,7 @@ function renderMetadata(ds) {
     ${md.description ? `<p style="color:var(--text-secondary);font-size:.82rem">${esc(md.description)}</p>` : ""}
 
     ${section("Provenance", provenance)}
+    ${section("Data access (public / private)", access)}
     ${section(`Authors (${authors.length})`, authorsHtml)}
     ${section("Claims", claims)}
     ${section("Preview figures", figures)}

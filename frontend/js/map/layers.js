@@ -10,6 +10,7 @@ import {
   PFR_GRID,
   headTailBreaks,
   classIndex,
+  FIXED_PFR_BREAKS,
 } from "./colors.js";
 
 const boundariesData = () => state.dataset?.layers?.boundaries?.data || null;
@@ -212,8 +213,12 @@ export async function addRocrateOutput(sourceId, output) {
 }
 
 function addRiskSurface(geo, feats) {
-  const maBreaks = headTailBreaks(feats.map((f) => +f.properties?.smoothed_RIMA || 0));
-  const wbBreaks = headTailBreaks(feats.map((f) => +f.properties?.smoothed_RIWB || 0));
+  // Aggregated (HEALPix/choropleth) cells use FIXED shared thresholds
+  // raw building layers use data-driven head/tail.
+  const p0 = feats[0]?.properties || {};
+  const aggregated = "healpix_id" in p0 || "n_buildings" in p0;
+  const maBreaks = aggregated ? FIXED_PFR_BREAKS : headTailBreaks(feats.map((f) => +f.properties?.smoothed_RIMA || 0));
+  const wbBreaks = aggregated ? FIXED_PFR_BREAKS : headTailBreaks(feats.map((f) => +f.properties?.smoothed_RIWB || 0));
   const colorFor = (p) =>
     PFR_GRID[classIndex(+p?.smoothed_RIWB || 0, wbBreaks)][classIndex(+p?.smoothed_RIMA || 0, maBreaks)];
 
@@ -233,7 +238,14 @@ function addRiskSurface(geo, feats) {
     minY = Math.min(minY, c[1]); maxY = Math.max(maxY, c[1]);
   }
 
-  if (pts.length && typeof d3 !== "undefined" && d3.Delaunay) {
+  // Draw polygons directly (no Voronoi) when either:
+  //  - the layer is a small set of real building footprints (paper replication), or
+  //  - the layer is pre-aggregated cells (HEALPix / choropleth) computed once using package
+  const FOOTPRINT_MAX = 3000;
+  const isPolygon = /Polygon/.test(feats[0]?.geometry?.type || "");
+  const footprintMode = isPolygon && (aggregated || feats.length <= FOOTPRINT_MAX);
+
+  if (!footprintMode && pts.length && typeof d3 !== "undefined" && d3.Delaunay) {
     const pad = 0.003;
     const voronoi = d3.Delaunay.from(pts).voronoi([minX - pad, minY - pad, maxX + pad, maxY + pad]);
 
@@ -258,10 +270,20 @@ function addRiskSurface(geo, feats) {
     return;
   }
 
+  // FDO check + validation
+  // Footprint , aggregated-cell , fallback render, colored by PFR.
+  //  - real building footprints: draw ALL buildings (small input data)
+  //  - aggregated cells (HEALPix/choropleth): draw ONLY hotspot cells
   track(
     L.geoJSON(geo, {
-      filter: (f) => keep(f.properties),
-      style: (f) => ({ fillColor: colorFor(f.properties), color: "#333", weight: 0.3, opacity: 0.5, fillOpacity: 0.85 }),
+      filter: (f) => (aggregated ? keep(f.properties) : footprintMode || keep(f.properties)),
+      style: (f) => ({
+        fillColor: colorFor(f.properties),
+        color: aggregated ? "#666" : "#555",
+        weight: aggregated ? 0.4 : footprintMode ? 0.7 : 0.3,
+        opacity: aggregated ? 0.6 : footprintMode ? 0.9 : 0.5,
+        fillOpacity: aggregated ? 0.75 : 0.85,
+      }),
       pointToLayer: (f, ll) =>
         L.circleMarker(ll, { radius: 3, fillColor: colorFor(f.properties), color: "#333", weight: 0.3, fillOpacity: 0.9 }),
       onEachFeature: (f, l) => l.bindPopup(riskFieldPopup(f)),

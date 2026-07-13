@@ -6,6 +6,7 @@ export const state = {
   dataset: null,
 
   figure: "figure4",
+  view: "public",            // public | private  (private = building-level, authorized)
   enabledLayers: {
     riskMap: true,
     socialVulnerability: false,

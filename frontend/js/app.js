@@ -3,7 +3,7 @@ import { fetchSources, fetchDataset } from "./api/dataService.js";
 import { initMap, fitToLayer, fitToLayers } from "./map/map.js";
 import * as layers from "./map/layers.js";
 import { buildLegend } from "./map/legends.js";
-import { setText, setLoading, showError } from "./ui/dom.js";
+import { $, setText, setLoading, showError } from "./ui/dom.js";
 import { buildVisualizationSelector, wireBasemap } from "./ui/sidebar.js";
 import { buildSourceSelector } from "./ui/sourceSelector.js";
 import { wireMetadataToggle, refreshMetadataPanel, setMetadataAvailable } from "./ui/metadataPanel.js";
@@ -52,6 +52,7 @@ async function selectSources(ids) {
         })
     );
     state.dataset = state.datasets[ids[0]] || null;
+    buildViewSelector();
     buildVisualizationSelector(render);
     await render(true);
   } catch (err) {
@@ -83,6 +84,7 @@ async function render(fit = false) {
     const E = state.enabledLayers;
     const riskGeos = [];
     const allGeos = [];
+    let restricted = false;
     for (const sid of ids) {
       const ds = state.datasets[sid];
       if (ds.sourceType !== "rocrate-output") continue;
@@ -100,12 +102,17 @@ async function render(fit = false) {
       if (E.focusAreas && L.focusAreas)
         allGeos.push(await layers.addRocrateOutput(sid, L.focusAreas));
 
-      // PFR risk overlay always on top.
-      if (E.riskMap && L.riskMap) {
-        const g = await layers.addRocrateOutput(sid, L.riskMap);
+
+      const riskKey = state.view === "private" ? "buildingsRisk" : "riskMap";
+      if (E.riskMap && L[riskKey]) {
+        const g = await layers.addRocrateOutput(sid, L[riskKey]);
         if (g) { riskGeos.push(g); allGeos.push(g); }
+        else if (state.view === "private") restricted = true;
       }
     }
+    setText("currentSubtitle", state.view === "private"
+      ? (restricted ? "🔒 Private (building-level) — restricted (authorization required)" : "🔒 Private (building-level) view")
+      : "Public view — privacy-preserving aggregated layers");
     if (fit) fitToLayers((riskGeos.length ? riskGeos : allGeos).filter(Boolean));
   } else {
     const fig = FIGURES.find((f) => f.key === state.figure) || FIGURES[0];
@@ -117,6 +124,31 @@ async function render(fit = false) {
   setMetadataAvailable(true);
   buildLegend();
   refreshMetadataPanel();
+}
+
+// Public/Private view selector, check using  server validation
+function buildViewSelector() {
+  const sel = $("viewSelector");
+  const section = $("viewSection");
+  if (!sel || !section) return;
+  const ds = state.dataset || {};
+  const allowed = ds.allowedViews || ["public"];
+  const views = ds.views || {};
+  if (!allowed.includes(state.view)) state.view = "public";
+  if (allowed.length <= 1) { section.style.display = "none"; return; }
+  section.style.display = "";
+  sel.innerHTML = "";
+  allowed.forEach((v) => {
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = (views[v] && views[v].label) || v;
+    if (v === state.view) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  if (!sel.dataset.wired) {
+    sel.addEventListener("change", () => { state.view = sel.value; render(true); });
+    sel.dataset.wired = "1";
+  }
 }
 
 function renderLocal(fit) {
