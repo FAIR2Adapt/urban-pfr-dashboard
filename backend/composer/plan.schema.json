@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "fdo-dashboard-plan/2",
+  "description": "The runtime contract between the composer and an application; not a FAIR profile.",
+  "type": "object",
+  "required": ["schema", "pid", "status", "panels", "diagnostics", "evidence", "uncomposed_parts"],
+  "$defs": {
+    "diagnostic": {
+      "type": "object",
+      "required": ["code", "level", "message"],
+      "properties": {
+        "code": {"type": "string", "pattern": "^[a-z]+\\.[a-z_]+$"},
+        "level": {"enum": ["info", "warning", "error"]},
+        "message": {"type": "string"}
+      }
+    },
+    "input": {
+      "type": "object",
+      "required": ["name", "entity", "kind", "variables", "required", "formats", "access"],
+      "properties": {
+        "name": {"type": "string"},
+        "entity": {"type": ["string", "array"]},
+        "kind": {"type": "string"},
+        "variables": {"type": "object"},
+        "required": {"type": "boolean"},
+        "formats": {"type": "array", "items": {"type": "string"}},
+        "access": {"enum": ["open", "restricted", "unknown"]}
+      }
+    }
+  },
+  "properties": {
+    "schema": {"const": "fdo-dashboard-plan/2"},
+    "pid": {"type": "string"},
+    "title": {"type": ["string", "null"]},
+    "about": {"type": ["string", "null"]},
+    "status": {"enum": ["PASS", "PARTIAL", "FAIL"]},
+    "diagnostics": {"type": "array", "items": {"$ref": "#/$defs/diagnostic"}},
+    "uncomposed_parts": {"type": "array", "items": {"type": "string"}},
+    "evidence": {"type": "object", "properties": {"objects_read": {"type": "object"}}},
+    "panels": {"type": "array", "items": {
+      "type": "object",
+      "required": ["id", "plugin", "renderer", "object", "inputs", "settings", "position", "status", "access", "diagnostics", "evidence"],
+      "properties": {
+        "id": {"type": "string"},
+        "name": {"type": ["string", "null"]},
+        "plugin": {"type": "object", "required": ["pid"], "properties": {"pid": {"type": ["string", "null"]}, "version": {"type": ["string", "null"]}}},
+        "renderer": {"type": ["object", "null"], "required": ["renderer_id", "supported_plugin_version", "channels", "status"],
+                     "properties": {"renderer_id": {"type": "string"}, "supported_plugin_version": {"type": "string"},
+                                    "channels": {"type": "object"}, "palettes": {"type": "array"},
+                                    "status": {"enum": ["PASS", "FAIL", "INDETERMINATE"]}}},
+        "object": {"type": "object", "required": ["pid"], "properties": {"pid": {"type": ["string", "null"]}, "fragment": {"type": ["string", "null"]}}},
+        "inputs": {"type": "array", "items": {"$ref": "#/$defs/input"}},
+        "settings": {"type": "object"},
+        "position": {"type": ["integer", "null"]},
+        "status": {"enum": ["PASS", "PARTIAL", "FAIL", "INDETERMINATE"]},
+        "access": {"enum": ["open", "restricted", "unknown"]},
+        "diagnostics": {"type": "array", "items": {"$ref": "#/$defs/diagnostic"}},
+        "evidence": {"type": "object"}
+      }}}
+  }
+}

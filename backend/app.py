@@ -9,14 +9,10 @@ import re
 from functools import partial
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
-from urllib.request import Request, urlopen
-
-# Hard server-side cap for bbox-filtered FGB responses (viewport reads).
-FGB_BBOX_LIMIT = 20000
 
 from .adapters.base import AdapterError
 from .api import routes
-from .config import SourcesConfig, load_config
+from .config import SourcesConfig, files_root, load_config
 
 class DashboardHandler(http.server.SimpleHTTPRequestHandler):
     """Static files come from frontend/; /api/* is delegated to routes."""
@@ -43,7 +39,8 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             super().log_message(fmt, *args)
 
     def end_headers(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
+        if self._config.deployment == "public":   # an internal deployment answers its own origin only
+            self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
         super().end_headers()
 
@@ -58,8 +55,6 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         if len(parts) >= 5 and parts[0] == "api" and parts[1] == "sources" and parts[3] == "files":
             self._serve_source_file(parts[2], unquote("/".join(parts[4:])), parse_qs(parsed.query))
 
-        elif len(parts) == 4 and parts[0] == "api" and parts[1] == "sources" and parts[3] == "proxy":
-            self._proxy_source_url(parts[2], parse_qs(parsed.query).get("url", [""])[0])
         elif parts and parts[0] == "api":
             status, body = routes.handle_api(self._config, parts)
             self._send_json(status, body)
@@ -75,27 +70,27 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         self.wfile.write(payload)
 
     def _authorize(self, source_id, rel):
-        #ODRL policy. For now: internal deployment is allowed.
+        # the internal deployment serves the private tier; ODRL policies are not evaluated yet
         return self._config.deployment == "internal"
 
     def _serve_source_file(self, source_id, filename, query=None):
-        """Serve one package file; supports Range and ?bbox= for .fgb, no path traversal."""
+        """Serve one package file with Range support; no path traversal. A FlatGeobuf file is filtered by the browser."""
         source = self._config.get(source_id)
         if not source:
             return self._send_json(404, {"error": f"Unknown source id: {source_id}"})
         # Subpaths (public/…, private/…) are allowed
         if not filename or "\\" in filename or ".." in filename.split("/"):
             return self._send_json(403, {"error": "invalid filename"})
-        package_root = (self._config.root / source.get("locator", {}).get("value", "")).resolve()
+        package_root = files_root(source, self._config.root)
+        if package_root is None:
+            return self._send_json(404, {"error": f"source {source_id} serves no files"})
         target = (package_root / filename).resolve()
         try:
             rel = target.relative_to(package_root)
         except ValueError:
             return self._send_json(403, {"error": "path outside package root"})
-        # TODO FDO policy-controlled access.
-        # need to connect to ODRL policy
-        # NOTE: this tier check MUST stay before any read (full, Range or bbox).
-        if rel.parts and rel.parts[0] == "private":
+        # the tier is checked before any byte is read
+        if "private" in rel.parts:
             if not self._authorize(source_id, rel):
                 return self._send_json(403, {
                     "error": "restricted",
@@ -103,10 +98,6 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                 })
         if not target.is_file():
             return self._send_json(404, {"error": f"File not found: {filename}"})
-
-        query = query or {}
-        if target.suffix.lower() == ".fgb" and "bbox" in query:
-            return self._serve_fgb_bbox(target, query)
 
         ctype = (
             self.extensions_map.get(target.suffix.lower())
@@ -116,7 +107,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         return self._serve_file_bytes(target, ctype)
 
     def _serve_file_bytes(self, target, ctype):
-        #Full (200) or partial (206) file response.
+        # full (200) or partial (206) file response
         try:
             size = target.stat().st_size
         except OSError as exc:
@@ -162,93 +153,10 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                     self.wfile.write(chunk)
                     remaining -= len(chunk)
         except (BrokenPipeError, ConnectionResetError):
-            pass  # client hung up mid-transfer 
+            pass  # client hung up mid-transfer
 
-    def _serve_fgb_bbox(self, target, query):
-        """Return FGB features intersecting ?bbox= as GeoJSON, capped at FGB_BBOX_LIMIT."""
-        raw = (query.get("bbox") or [""])[0]
-        try:
-            minx, miny, maxx, maxy = (float(v) for v in raw.split(","))
-            if not (minx < maxx and miny < maxy):
-                raise ValueError
-        except ValueError:
-            return self._send_json(400, {"error": "invalid bbox; expected minx,miny,maxx,maxy"})
-        try:
-            limit = int((query.get("limit") or [str(FGB_BBOX_LIMIT)])[0])
-        except ValueError:
-            return self._send_json(400, {"error": "invalid limit"})
-        limit = max(1, min(limit, FGB_BBOX_LIMIT))  # server-side hard cap
 
-        try:
-            import pyogrio  # lazy: only bbox-filtered FGB reads need the geo stack
-        except ImportError:
-            return self._send_json(501, {
-                "error": "bbox filtering requires pyogrio (see requirements.txt)",
-            })
-        try:
-            df = pyogrio.read_dataframe(
-                str(target), bbox=(minx, miny, maxx, maxy), max_features=limit + 1
-            )
-        except Exception as exc:
-            return self._send_json(500, {"error": f"fgb read failed: {exc}"})
 
-        truncated = len(df) > limit
-        if truncated:
-            df = df.iloc[:limit]
-        geo = json.loads(df.to_json())
-        geo["truncated"] = truncated
-        geo["featureCount"] = len(df)
-        self._send_json(200, geo)
-
-    def _proxy_source_url(self, source_id, url):
-        """Fetch a remote resource server-side to dodge browser CORS.
-
-        Strictly whitelisted: the URL must be one this source's dataset already
-        references (a layer/output/figure sourceUrl). This stops the proxy from
-        being used as an open relay (SSRF).
-        """
-        if not (url.startswith("http://") or url.startswith("https://")):
-            return self._send_json(400, {"error": "missing or non-http(s) url"})
-        try:
-            dataset = routes.load_dataset_dict(self._config, source_id)
-        except AdapterError as exc:
-            return self._send_json(exc.status, exc.to_dict())
-        except Exception as exc:
-            return self._send_json(500, {"error": str(exc)})
-        if url not in _collect_resource_urls(dataset):
-            return self._send_json(403, {"error": "URL is not a known resource of this source"})
-        try:
-            req = Request(url, headers={"User-Agent": "flood-risk-dashboard"})
-            with urlopen(req, timeout=30) as resp:
-                data = resp.read()
-                ctype = (
-                    resp.headers.get("Content-Type")
-                    or mimetypes.guess_type(url)[0]
-                    or "application/octet-stream"
-                )
-        except Exception as exc:
-            return self._send_json(502, {"error": f"upstream fetch failed: {exc}"})
-        self.send_response(200)
-        self.send_header("Content-Type", ctype)
-        self.send_header("Content-Length", str(len(data)))
-        self.end_headers()
-        self.wfile.write(data)
-
-def _collect_resource_urls(dataset: dict) -> set:
-    """All remote resource URLs a dataset references — the proxy allow-list."""
-    urls = set()
-    for layer in (dataset.get("layers") or {}).values():
-        if isinstance(layer, dict) and layer.get("sourceUrl"):
-            urls.add(layer["sourceUrl"])
-    for claim in dataset.get("claims") or []:
-        for out in claim.get("outputs") or []:
-            for key in ("sourceUrl", "previewUrl"):
-                if out.get(key):
-                    urls.add(out[key])
-    for fig in dataset.get("figures") or []:
-        if fig.get("sourceUrl"):
-            urls.add(fig["sourceUrl"])
-    return urls
 
 def _print_banner(root: Path, config: SourcesConfig, port: int):
     print("\n  Flood-Risk Dashboard")

@@ -10,6 +10,10 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+# optional: fdo-consume for the FDO sources, e.g. git+https://github.com/FAIR2Adapt/fdo-consume@v1.1.0
+ARG FDO_CONSUME_PIP=""
+RUN if [ -n "$FDO_CONSUME_PIP" ]; then pip install --no-cache-dir "$FDO_CONSUME_PIP"; fi
+
 COPY server.py README.md ./
 COPY backend/ ./backend/
 COPY frontend/ ./frontend/

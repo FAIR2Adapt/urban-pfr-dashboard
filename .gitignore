@@ -27,10 +27,14 @@ build/
 *.egg-info/
 dashboard_dataset.json
 
-# Local data — RO-Crate / V1 - Regarding provate demo knowledge loom records GeoJSON inputs are local 
-#Will use API in next versions
-/test-data/
+# real local data (test-data/ holds only synthetic objects)
 
 
-/tests/
 /examples/
+test-data/local-only/
+test-data/fdo-cca-demo/objects/bremen-*/
+test-data/loom-demo/
+/tests-local/
+config/sources.local.json
+logs/
+private-maps/

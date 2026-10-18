@@ -1,0 +1,36 @@
+# Edits made only in the FDOs, the change the page must show, and the test that makes the edit on a copy of the test
+# objects and checks the change with no code edited. A row is claimed only while its test passes.
+rows:
+  - edit: "a map product's FlatGeobuf declared with another FlatGeobuf media type string"
+    change: "the same layer is drawn by the FlatGeobuf reader"
+    test: tests/test_variation_matrix.py::FormatEditsTest::test_an_alias_of_the_format_is_read_by_the_same_reader
+  - edit: "a map product's formats declared with other letter case or with parameters"
+    change: "the same files are chosen"
+    test: tests/test_variation_matrix.py::FormatEditsTest::test_case_and_parameters_do_not_change_the_choice
+  - edit: "a map product offers only PMTiles, or only FlatGeobuf"
+    change: "each map engine draws the file it reads; the other engine says why it draws nothing"
+    test: tests/test_variation_matrix.py::FormatEditsTest::test_each_engine_draws_the_file_it_reads
+  - edit: "a map product offers only a format no reader reads (GeoPackage)"
+    change: "the layer is listed and not drawn; the reason names the format"
+    test: tests/test_variation_matrix.py::FormatEditsTest::test_an_unread_format_is_refused_with_its_name
+  - edit: "a map product's file declares a format that is not a media type (a format registry IRI)"
+    change: "that file is refused with the reason; the other files are still used"
+    test: tests/test_variation_matrix.py::FormatEditsTest::test_a_format_that_is_not_a_media_type_is_refused
+  - edit: "a GeoJSON distribution declared larger than the size read whole"
+    change: "the GeoJSON is refused with its size; a tiled file is used"
+    test: tests/test_variation_matrix.py::FormatEditsTest::test_an_oversized_geojson_is_refused
+  - edit: "the class breaks of a product changed in the Data FDO"
+    change: "the layer's classification follows"
+    test: tests/test_variation_matrix.py::ObjectEditsTest::test_changed_breaks_reach_the_layer
+  - edit: "the order of two panels changed in the Dashboard FDO"
+    change: "the panels follow the new order"
+    test: tests/test_variation_matrix.py::ObjectEditsTest::test_panel_order_follows_the_dashboard
+  - edit: "a Plugin FDO input variable renamed, same propertyID"
+    change: "the same column is bound"
+    test: tests/test_composition.py::ComposerTest::test_the_plan_matches_the_golden_file
+  - edit: "a product declared restricted"
+    change: "listed, not served, not drawn"
+    test: tests/test_variation_matrix.py::ObjectEditsTest::test_a_restricted_product_is_not_drawn
+  - edit: "a map product declared in a projected coordinate system (e.g. EPSG:25832)"
+    change: "the layer is listed and not drawn; the reason names the coordinate system"
+    test: tests/test_variation_matrix.py::ObjectEditsTest::test_a_product_in_another_coordinate_system_is_not_drawn

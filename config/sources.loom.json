@@ -1,0 +1,18 @@
+{
+  "defaultSource": "fdo-loom-record",
+  "deployment": "public",
+  "sources": [
+    {
+      "id": "fdo-loom-record",
+      "label": "Hamburg study record (Knowledge Loom; map from the Data FDO it is based on)",
+      "city": "Hamburg",
+      "adapter": "fdo-resource",
+      "enabled": true,
+      "locator": {
+        "pid": "https://example.org/stand-in/hamburg-loom-record",
+        "fixtures": "test-data/fdo-cca-demo",
+        "profile": "knowledge-loom-0.1.0"
+      }
+    }
+  ]
+}

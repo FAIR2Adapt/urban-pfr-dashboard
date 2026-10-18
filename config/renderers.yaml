@@ -1,0 +1,32 @@
+# Trusted local implementations that stand for Plugin FDOs. A plugin's url is never loaded.
+# supported_plugin_version: the Plugin FDO softwareVersion this implementation was written for; another version is not run.
+# channels: which of the plugin's input variables the renderer draws on which channel, and the key of its class breaks
+# inside the dataset's classification property. palettes: the colorScheme names the renderer accepts.
+# Profile attribute TBD: channel-to-breaks pairing and class count on the plugin; paired here until then.
+renderers:
+  - plugin_pid: https://example.org/stand-in/plugin/bivariate-risk-map
+    supported_plugin_version: "1.0.0"
+    renderer_id: bivariate-map
+    channels: {x: {variable: risk_mobility_accessibility, breaks: breaks_ma}, y: {variable: risk_wellbeing, breaks: breaks_wb}}
+    palettes: [yellow-purple]
+  - plugin_pid: https://example.org/stand-in/plugin/alternative-risk-map
+    supported_plugin_version: "0.3.0"
+    renderer_id: bivariate-map
+    channels: {x: {variable: ma, breaks: breaks_ma}, y: {variable: wb, breaks: breaks_wb}}
+    palettes: [yellow-purple]
+  - plugin_pid: https://example.org/stand-in/plugin/single-variable-map
+    supported_plugin_version: "1.0.0"
+    renderer_id: single-variable-map
+    channels: {value: {variable: social_vulnerability, breaks: breaks_sv}}
+    palettes: [greys]
+  - plugin_pid: https://example.org/stand-in/plugin/bivariate-background-map
+    supported_plugin_version: "1.0.0"
+    renderer_id: bivariate-background
+    channels: {x: {variable: sensitivity, breaks: breaks_sensitivity}, y: {variable: coping_capacity, breaks: breaks_coping}}
+    palettes: [green-blue]
+  - plugin_pid: https://example.org/stand-in/plugin/claims-list
+    supported_plugin_version: "1.0.0"
+    renderer_id: claims-list
+  - plugin_pid: https://example.org/stand-in/plugin/metadata-card
+    supported_plugin_version: "1.0.0"
+    renderer_id: metadata-card

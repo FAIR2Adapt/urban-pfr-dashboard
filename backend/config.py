@@ -37,6 +37,7 @@ class SourcesConfig:
             {
                 "id": s.get("id"),
                 "label": s.get("label", s.get("id")),
+                "city": city_of(s),
                 "adapter": s.get("adapter"),
                 "enabled": bool(s.get("enabled")),
                 "note": s.get("note"),
@@ -44,12 +45,43 @@ class SourcesConfig:
             for s in self.sources
         ]
 
+
+def files_root(source: dict, root: "Path") -> "Path | None":
+    """The folder this server serves a source's files from: `locator.files` (one object), else
+    `locator.value`, else `<fixtures>/objects` for a recorded source whose paths start with the object's folder."""
+    locator = source.get("locator") or {}
+    for key in ("files", "value"):
+        if locator.get(key):
+            return (root / locator[key]).resolve()
+    if locator.get("fixtures"):
+        return (root / locator["fixtures"] / "objects").resolve()
+    return None
+
+
+def city_of(source: dict) -> str:
+    """The city a source serves: declared in config (`city`); the label stands in when it is missing. Never parsed from the label."""
+    city = source.get("city")
+    if city is not None and not isinstance(city, str):
+        raise ValueError(f"source {source.get('id')!r}: city must be a string")
+    return city or source.get("label") or source.get("id") or ""
+
+def _requires(data: dict, root: Path) -> dict:
+    """Disable a source whose `requires` path (local, git-ignored) is absent."""
+    for source in data.get("sources", []):
+        needed = source.get("requires")
+        if needed and not (root / needed).exists():
+            source["enabled"] = False
+            source["note"] = f"needs {needed} (local only, not in the repository)"
+    return data
+
 def _expand_env(data: dict) -> dict:
 
     for source in data.get("sources", []):
         locator = source.get("locator")
-        if isinstance(locator, dict) and isinstance(locator.get("value"), str):
-            locator["value"] = os.path.expandvars(locator["value"])
+        if isinstance(locator, dict):
+            for key in ("value", "files", "fixtures"):
+                if isinstance(locator.get(key), str):
+                    locator[key] = os.path.expandvars(locator[key])
     return data
 
 def load_config(root: str | Path) -> SourcesConfig:
@@ -65,4 +97,7 @@ def load_config(root: str | Path) -> SourcesConfig:
     if not path.exists():
         return SourcesConfig({"defaultSource": None, "sources": []}, root)
     with path.open(encoding="utf-8") as handle:
-        return SourcesConfig(_expand_env(json.load(handle)), root)
+        config = SourcesConfig(_requires(_expand_env(json.load(handle)), root), root)
+    for source in config.sources:
+        city_of(source)   # a wrong type fails at start, not in the browser
+    return config

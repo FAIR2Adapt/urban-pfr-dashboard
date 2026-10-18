@@ -1,0 +1,37 @@
+# Data formats this dashboard reads, by canonical media type. A declared format is lower-cased, its parameters are
+# dropped and an alias is mapped to its canonical type. A format not listed here is refused with a reason; nothing is
+# converted in the browser.
+# Profile attribute TBD: a registered media type for FlatGeobuf; the three strings in use are treated as one.
+formats:
+  application/vnd.pmtiles:
+    label: PMTiles
+    aliases: []
+    kind: vector tiles
+    reader: pmtiles
+    engines: [webgl]
+    note: "a tiled view; low zoom levels can hold fewer cells than the product, the full set is in the FlatGeobuf file"
+  application/flatgeobuf:
+    label: FlatGeobuf
+    aliases: [application/vnd.flatgeobuf, application/x-flatgeobuf]
+    kind: vector file with a spatial index
+    reader: fgb-bbox
+    engines: [leaflet]
+    max_features_per_read: 20000
+  application/geo+json:
+    label: GeoJSON
+    aliases: []
+    kind: vector file
+    reader: geojson
+    engines: [webgl, leaflet]
+    max_bytes: 50000000   # read whole; a larger file is refused (judged on the declared contentSize)
+
+# Preference of each map engine among the formats it reads; the browser picks the engine (WebGL or not).
+engines:
+  webgl:
+    label: the WebGL map (MapLibre)
+    prefer: [application/vnd.pmtiles, application/geo+json]
+  leaflet:
+    label: the Leaflet fallback (no WebGL)
+    prefer: [application/flatgeobuf, application/geo+json]
+
+unlisted: "no reader in this dashboard for {format}; a server conversion is proposed, not built"

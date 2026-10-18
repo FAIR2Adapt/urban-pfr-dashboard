@@ -1,0 +1,18 @@
+{
+  "defaultSource": "fdo-cca-demo",
+  "deployment": "public",
+  "sources": [
+    {
+      "id": "fdo-cca-demo",
+      "label": "Hamburg Data FDO + Knowledge Loom record",
+      "city": "Hamburg",
+      "adapter": "fdo-resource",
+      "enabled": true,
+      "locator": {
+        "pid": "https://example.org/stand-in/hamburg-cca-profile-demo",
+        "fixtures": "test-data/fdo-cca-demo",
+        "profile_overlay": "cca-dashboard-additions"
+      }
+    }
+  ]
+}

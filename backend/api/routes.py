@@ -13,7 +13,7 @@ def list_sources(config: SourcesConfig):
     }
 
 def load_dataset_dict(config: SourcesConfig, source_id: str) -> dict:
-    #Resolve a source to its normalized dataset dict, or raise AdapterError.
+    # resolve a source to its normalized dataset dict, or raise AdapterError
     source = config.get(source_id)
     if source is None:
         raise AdapterError(f"Unknown source id: {source_id}", status=404)
@@ -33,9 +33,9 @@ def get_dataset(config: SourcesConfig, source_id: str):
     except AdapterError as exc:
 
         return exc.status, exc.to_dict()
-    except Exception as exc:
+    except Exception:
         traceback.print_exc()
-        return 500, {"error": str(exc)}
+        return 500, {"error": f"the server could not load source '{source_id}'; see the server log"}
 
 def handle_api(config: SourcesConfig, parts: list[str]):
     if not parts or parts[0] != "api":
@@ -44,4 +44,7 @@ def handle_api(config: SourcesConfig, parts: list[str]):
         return list_sources(config)
     if len(parts) == 4 and parts[1] == "sources" and parts[3] == "dataset":
         return get_dataset(config, parts[2])
+    if len(parts) == 2 and parts[1] == "capabilities":
+        from ..services.capabilities import capabilities
+        return 200, capabilities(config, config.root)
     return 404, {"error": "unknown api endpoint", "path": "/" + "/".join(parts)}

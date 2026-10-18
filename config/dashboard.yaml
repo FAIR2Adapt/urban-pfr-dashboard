@@ -1,0 +1,37 @@
+# How this dashboard draws; facts about the data come from the FDO through fdo-consume.
+contracts:                      # one contract per panel
+  metadata: cs3-metadata-v1     # required, else the source fails
+  claims: cs3-claims-v1
+  map: cs3-map-v1
+evidence:                       # records behind the claims, by PID
+  contract: cs3-evidence-v1
+  profile: knowledge-loom-0.1.0   # read as a Loom record when the export declares no profile
+map_from_record:                # a record that describes no map products (a Loom record) shows the map of the object it
+  relation: based_on            # declares as isBasedOn, by PID; the record keeps its statements, nothing is copied
+  profile_overlay: cca-dashboard-additions
+# layers find their product by PID (stand-in PIDs in the test data). An object of another city has other product
+# PIDs: then a slot binds the one Dataset that provides every variable it lists (exact propertyID, as the composer binds);
+# two candidates bind nothing
+structure_property: spatialStructureParameters   # crs, geometry, cell count
+variable_id_prefix: "https://example.org/stand-in/variable/"   # key = end of propertyID
+layers:
+  riskMap:
+    product: "https://example.org/stand-in/product/risk-healpix"
+    sourceLayer: risk_healpix
+    variables: [risk_mobility_accessibility, risk_wellbeing, hazard_mobility_accessibility, hazard_wellbeing, cell_id, aggregation_count]
+    classification: classBreaks
+  socialVulnerability:
+    product: "https://example.org/stand-in/product/vulnerability-healpix"
+    sourceLayer: vulnerability_healpix
+    variables: [social_vulnerability, svi, sensitivity, coping_capacity, cell_id, aggregation_count]
+    classification: classBreaks
+  vulnerabilityDrivers:
+    product: "https://example.org/stand-in/product/vulnerability-healpix"
+    sourceLayer: vulnerability_healpix
+    variables: [social_vulnerability, svi, sensitivity, coping_capacity, cell_id, aggregation_count]
+    classification: classBreaks
+pages:                          # extra Pages paths
+  composed: {source: fdo-dashboard-demo, title: "Composed from a Dashboard FDO (plugins and the Data FDO read by PID)"}
+  loom: {source: fdo-loom-record, title: "Knowledge Loom record: statements from the record, map from the Data FDO it is based on"}
+  combined: {source: fdo-cca-demo, title: "Data FDO + Knowledge Loom record (map from the Data FDO, claims from the record)"}
+  bremen: {source: bremen-dashboard-demo, title: "Bremen, composed from its own Dashboard FDO over the Bremen Data FDO"}

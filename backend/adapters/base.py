@@ -1,16 +1,4 @@
-"""Adapter #to do improve
-    {
-      "id": "...",
-      "label": "...",
-      "sourceType": "local-output | static-geojson | loom | rohub-rocrate | fdo-resource",
-      "layers": {
-        "riskMap":    { "type": "geojson", "data": { ...GeoJSON... } },
-        "boundaries": { "type": "geojson", "data": { ...GeoJSON... } }
-      },
-      "metadata": { "title", "description", "license", "authors", "source" },
-      "ui": { "defaultLayer", "defaultRiskField", "availableRiskFields" }
-    }
-"""
+"""Adapter base: the error types and the dataset shape (id, label, sourceType, layers, metadata) every adapter returns."""
 from __future__ import annotations
 
 class AdapterError(Exception):
@@ -30,7 +18,12 @@ class AdapterError(Exception):
         return {"error": self.message, "status": self.status, "details": self.details}
 
 class DatasetLoadError(AdapterError):
+    """The source's data could not be found or read."""
     status = 404
+
+class CompositionError(AdapterError):
+    """The object was read, but what it describes cannot be used by this application."""
+    status = 422
 
 class AdapterNotImplementedError(AdapterError):
     status = 501
@@ -42,7 +35,7 @@ class DataSourceAdapter:
         raise NotImplementedError
 
     @staticmethod
-    def normalize_dataset(*, id, label, source_type, layers=None, metadata=None, ui=None) -> dict:
+    def normalize_dataset(*, id, label, source_type, layers=None, metadata=None) -> dict:
         """Assemble the one stable dataset shape returned to the frontend."""
         return {
             "id": id,
@@ -50,5 +43,4 @@ class DataSourceAdapter:
             "sourceType": source_type,
             "layers": layers or {},
             "metadata": metadata or {},
-            "ui": ui or {},
         }

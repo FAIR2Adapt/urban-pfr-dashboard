@@ -1,27 +1,80 @@
 {
-  "defaultSource": "hamburg-healpix-sample",
+  "defaultSource": "fdo-cca-demo",
+  "deployment": "public",
   "sources": [
     {
-      "id": "hamburg-healpix-sample",
-      "label": "Hamburg — public HEALPix sample ( output subset)",
-      "adapter": "rocrate-output",
+      "id": "fdo-cca-demo",
+      "label": "Hamburg Data FDO + Knowledge Loom record",
+      "city": "Hamburg",
+      "adapter": "fdo-resource",
       "enabled": true,
-      "note": "Local demo fixture (not committed): public-tier sample (k-anonymous cells, no building-level data). Generate with scripts/make_public_fixture.py.",
       "locator": {
-        "type": "local-path",
-        "value": "examples/hamburg-healpix-sample"
+        "pid": "https://example.org/stand-in/hamburg-cca-profile-demo",
+        "fixtures": "test-data/fdo-cca-demo",
+        "profile_overlay": "cca-dashboard-additions"
       }
     },
     {
-      "id": "hamburg-run-local",
-      "label": "Hamburg — full run output (local, not committed)",
-      "adapter": "rocrate-output",
-      "enabled": false,
-      "note": "Template: point 'value' at a urban_pfr run output directory that contains ro-crate-metadata.json (e.g. under test-data/, which is gitignored and pending for public view validation), then set enabled=true.",
+      "id": "bremen-dashboard-demo",
+      "label": "Bremen Dashboard FDO (composed from Plugin FDOs and the Bremen Data FDO)",
+      "city": "Bremen",
+      "adapter": "fdo-dashboard",
+      "enabled": true,
       "locator": {
-        "type": "local-path",
-        "value": "test-data/hamburg-run"
+        "pid": "https://example.org/stand-in/bremen-dashboard",
+        "fixtures": "test-data/fdo-cca-demo",
+        "profile_overlay": "cca-dashboard-additions"
+      },
+      "requires": "test-data/fdo-cca-demo/objects/bremen-cca-profile-demo/ro-crate-metadata.json"
+    },
+    {
+      "id": "fdo-dashboard-demo",
+      "label": "Hamburg Dashboard FDO (composed from Plugin FDOs and the Data FDO)",
+      "city": "Hamburg",
+      "adapter": "fdo-dashboard",
+      "enabled": true,
+      "locator": {
+        "pid": "https://example.org/stand-in/hamburg-dashboard",
+        "fixtures": "test-data/fdo-cca-demo",
+        "profile_overlay": "cca-dashboard-additions"
       }
+    },
+    {
+      "id": "fdo-dashboard-alternative",
+      "label": "Hamburg Dashboard FDO, risk panel by an alternative renderer",
+      "city": "Hamburg",
+      "adapter": "fdo-dashboard",
+      "enabled": true,
+      "locator": {
+        "pid": "https://example.org/stand-in/hamburg-dashboard-alternative",
+        "fixtures": "test-data/fdo-cca-demo",
+        "profile_overlay": "cca-dashboard-additions"
+      }
+    },
+    {
+      "id": "fdo-loom-record",
+      "label": "Hamburg study record (Knowledge Loom; map from the Data FDO it is based on)",
+      "city": "Hamburg",
+      "adapter": "fdo-resource",
+      "enabled": true,
+      "locator": {
+        "pid": "https://example.org/stand-in/hamburg-loom-record",
+        "fixtures": "test-data/fdo-cca-demo",
+        "profile": "knowledge-loom-0.1.0"
+      }
+    },
+    {
+      "id": "bremen-loom-record",
+      "label": "Bremen study record (Knowledge Loom; map from the Data FDO it is based on)",
+      "city": "Bremen",
+      "adapter": "fdo-resource",
+      "enabled": true,
+      "locator": {
+        "pid": "https://example.org/stand-in/bremen-loom-record",
+        "fixtures": "test-data/fdo-cca-demo",
+        "profile": "knowledge-loom-0.1.0"
+      },
+      "requires": "test-data/fdo-cca-demo/objects/bremen-loom-record/ro-crate-metadata.json"
     }
   ]
 }

@@ -1,0 +1,18 @@
+{
+  "defaultSource": "fdo-dashboard-demo",
+  "deployment": "public",
+  "sources": [
+    {
+      "id": "fdo-dashboard-demo",
+      "label": "Hamburg Dashboard FDO (composed from Plugin FDOs and the Data FDO)",
+      "city": "Hamburg",
+      "adapter": "fdo-dashboard",
+      "enabled": true,
+      "locator": {
+        "pid": "https://example.org/stand-in/hamburg-dashboard",
+        "fixtures": "test-data/fdo-cca-demo",
+        "profile_overlay": "cca-dashboard-additions"
+      }
+    }
+  ]
+}

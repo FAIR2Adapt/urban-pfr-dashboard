@@ -1,7 +1,7 @@
-geopandas>=1.0
-pyproj>=3.6
-shapely>=2.0
-numpy>=1.26
-pandas>=2.0
-pyogrio>=0.7
+PyYAML>=6
 pytest>=8   # dev/test only
+jsonschema>=4   # dev/test only: validates a composed plan against its schema (CI)
+# Optional, for the footprint check at build time and for the scripts that build test data from toolbox output:
+#   pip install pyogrio geopandas
+# FDO sources need fdo-consume 1.1 or later (ships the contracts and profile maps; not on PyPI yet):
+#   pip install ./fdo-consume   or   pip install git+https://github.com/FAIR2Adapt/fdo-consume@v1.1.0
