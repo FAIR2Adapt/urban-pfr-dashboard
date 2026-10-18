@@ -1,0 +1,369 @@
+{
+ "schema": "fdo-dashboard-plan/2",
+ "pid": "https://example.org/stand-in/hamburg-dashboard",
+ "title": "Hamburg urban pluvial flood risk",
+ "about": "https://example.org/stand-in/hamburg-cca-profile-demo",
+ "status": "PASS",
+ "panels": [
+  {
+   "id": "#panel-risk",
+   "name": "Pluvial flood risk (PFR)",
+   "plugin": {
+    "pid": "https://example.org/stand-in/plugin/bivariate-risk-map",
+    "version": "1.0.0",
+    "kind": "view panel",
+    "name": "bivariate-risk-map"
+   },
+   "renderer": {
+    "renderer_id": "bivariate-map",
+    "supported_plugin_version": "1.0.0",
+    "channels": {
+     "x": {
+      "variable": "risk_mobility_accessibility",
+      "breaks": "breaks_ma"
+     },
+     "y": {
+      "variable": "risk_wellbeing",
+      "breaks": "breaks_wb"
+     }
+    },
+    "palettes": [
+     "yellow-purple"
+    ],
+    "status": "PASS"
+   },
+   "object": {
+    "pid": "https://example.org/stand-in/hamburg-cca-profile-demo",
+    "fragment": "product-risk-healpix"
+   },
+   "inputs": [
+    {
+     "name": "main",
+     "entity": "#product-risk-healpix",
+     "kind": "Dataset",
+     "variables": {
+      "risk_mobility_accessibility": "PFRMA_smoothed",
+      "risk_wellbeing": "PFRWB_smoothed"
+     },
+     "required": true,
+     "formats": [
+      "application/flatgeobuf",
+      "application/vnd.pmtiles"
+     ],
+     "access": "open"
+    },
+    {
+     "name": "optional",
+     "entity": "#product-risk-healpix",
+     "kind": "Dataset",
+     "variables": {
+      "hazard_mobility_accessibility": "HMA",
+      "hazard_wellbeing": "HWB",
+      "cell_id": "healpix_id",
+      "aggregation_count": "n_buildings"
+     },
+     "required": false,
+     "formats": [
+      "application/flatgeobuf",
+      "application/vnd.pmtiles"
+     ],
+     "access": "open"
+    }
+   ],
+   "settings": {
+    "classification": "classBreaks",
+    "colorScheme": "yellow-purple"
+   },
+   "position": 1,
+   "status": "PASS",
+   "access": "open",
+   "diagnostics": [],
+   "evidence": {
+    "plugin_sha256": "2510721057e1b78e8b62d2aa23c5eaff61dc90df2525fa5ea717b6007a0be679",
+    "object_sha256": "ea253b068b12ac16700c82227cbae470432dd2ff0c0d8fcdb3e5e59020af3274",
+    "decisions": [
+     "#input-main: #product-risk-healpix provides ['risk_mobility_accessibility', 'risk_wellbeing']",
+     "#input-optional: #product-risk-healpix provides ['aggregation_count', 'cell_id', 'hazard_mobility_accessibility', 'hazard_wellbeing']"
+    ]
+   }
+  },
+  {
+   "id": "#panel-social-vulnerability",
+   "name": "Social vulnerability (SV)",
+   "plugin": {
+    "pid": "https://example.org/stand-in/plugin/single-variable-map",
+    "version": "1.0.0",
+    "kind": "view panel",
+    "name": "single-variable-map"
+   },
+   "renderer": {
+    "renderer_id": "single-variable-map",
+    "supported_plugin_version": "1.0.0",
+    "channels": {
+     "value": {
+      "variable": "social_vulnerability",
+      "breaks": "breaks_sv"
+     }
+    },
+    "palettes": [
+     "greys"
+    ],
+    "status": "PASS"
+   },
+   "object": {
+    "pid": "https://example.org/stand-in/hamburg-cca-profile-demo",
+    "fragment": "product-vulnerability-healpix"
+   },
+   "inputs": [
+    {
+     "name": "main",
+     "entity": "#product-vulnerability-healpix",
+     "kind": "Dataset",
+     "variables": {
+      "social_vulnerability": "SVPF"
+     },
+     "required": true,
+     "formats": [
+      "application/flatgeobuf",
+      "application/vnd.pmtiles"
+     ],
+     "access": "open"
+    },
+    {
+     "name": "optional",
+     "entity": "#product-vulnerability-healpix",
+     "kind": "Dataset",
+     "variables": {
+      "svi": "SVI",
+      "sensitivity": "Sensitivity",
+      "coping_capacity": "CopingCapacity",
+      "cell_id": "healpix_id",
+      "aggregation_count": "n_buildings"
+     },
+     "required": false,
+     "formats": [
+      "application/flatgeobuf",
+      "application/vnd.pmtiles"
+     ],
+     "access": "open"
+    }
+   ],
+   "settings": {
+    "classification": "classBreaks",
+    "colorScheme": "greys",
+    "exclusiveGroup": "background"
+   },
+   "position": 2,
+   "status": "PASS",
+   "access": "open",
+   "diagnostics": [],
+   "evidence": {
+    "plugin_sha256": "a4cbb26194a284debbfbc5bcb4b98f1f7e515efce62efd7f344d0a76e32b37bd",
+    "object_sha256": "ea253b068b12ac16700c82227cbae470432dd2ff0c0d8fcdb3e5e59020af3274",
+    "decisions": [
+     "#input-main: #product-vulnerability-healpix provides ['social_vulnerability']",
+     "#input-optional: #product-vulnerability-healpix provides ['aggregation_count', 'cell_id', 'coping_capacity', 'sensitivity', 'svi']"
+    ]
+   }
+  },
+  {
+   "id": "#panel-drivers",
+   "name": "Vulnerability drivers (sensitivity × coping capacity)",
+   "plugin": {
+    "pid": "https://example.org/stand-in/plugin/bivariate-background-map",
+    "version": "1.0.0",
+    "kind": "view panel",
+    "name": "bivariate-background-map"
+   },
+   "renderer": {
+    "renderer_id": "bivariate-background",
+    "supported_plugin_version": "1.0.0",
+    "channels": {
+     "x": {
+      "variable": "sensitivity",
+      "breaks": "breaks_sensitivity"
+     },
+     "y": {
+      "variable": "coping_capacity",
+      "breaks": "breaks_coping"
+     }
+    },
+    "palettes": [
+     "green-blue"
+    ],
+    "status": "PASS"
+   },
+   "object": {
+    "pid": "https://example.org/stand-in/hamburg-cca-profile-demo",
+    "fragment": "product-vulnerability-healpix"
+   },
+   "inputs": [
+    {
+     "name": "main",
+     "entity": "#product-vulnerability-healpix",
+     "kind": "Dataset",
+     "variables": {
+      "sensitivity": "Sensitivity",
+      "coping_capacity": "CopingCapacity"
+     },
+     "required": true,
+     "formats": [
+      "application/flatgeobuf",
+      "application/vnd.pmtiles"
+     ],
+     "access": "open"
+    },
+    {
+     "name": "optional",
+     "entity": "#product-vulnerability-healpix",
+     "kind": "Dataset",
+     "variables": {
+      "social_vulnerability": "SVPF",
+      "svi": "SVI",
+      "cell_id": "healpix_id",
+      "aggregation_count": "n_buildings"
+     },
+     "required": false,
+     "formats": [
+      "application/flatgeobuf",
+      "application/vnd.pmtiles"
+     ],
+     "access": "open"
+    }
+   ],
+   "settings": {
+    "classification": "classBreaks",
+    "colorScheme": "green-blue",
+    "exclusiveGroup": "background"
+   },
+   "position": 3,
+   "status": "PASS",
+   "access": "open",
+   "diagnostics": [],
+   "evidence": {
+    "plugin_sha256": "85f4959bb7dece3c0032ddca66173c256d8239b6b696df7ceb1418e51de0f673",
+    "object_sha256": "ea253b068b12ac16700c82227cbae470432dd2ff0c0d8fcdb3e5e59020af3274",
+    "decisions": [
+     "#input-main: #product-vulnerability-healpix provides ['coping_capacity', 'sensitivity']",
+     "#input-optional: #product-vulnerability-healpix provides ['aggregation_count', 'cell_id', 'social_vulnerability', 'svi']"
+    ]
+   }
+  },
+  {
+   "id": "#panel-claims",
+   "name": "Claims",
+   "plugin": {
+    "pid": "https://example.org/stand-in/plugin/claims-list",
+    "version": "1.0.0",
+    "kind": "view panel",
+    "name": "claims-list"
+   },
+   "renderer": {
+    "renderer_id": "claims-list",
+    "supported_plugin_version": "1.0.0",
+    "channels": {},
+    "palettes": [],
+    "status": "PASS"
+   },
+   "object": {
+    "pid": "https://example.org/stand-in/hamburg-cca-profile-demo",
+    "fragment": null
+   },
+   "inputs": [
+    {
+     "name": "main",
+     "entity": [
+      "https://example.org/stand-in/hamburg-loom-record#e5b60d07-c048-4f7d-b7c6-9bae9083c7ad",
+      "https://example.org/stand-in/hamburg-loom-record#c5e8f5df-c589-4dd0-897d-61c215ef2fbd",
+      "https://example.org/stand-in/hamburg-loom-record#dd84f7ed-6079-4760-8c13-d6d502df127a"
+     ],
+     "kind": "Claim",
+     "variables": {},
+     "required": true,
+     "formats": [],
+     "access": "open"
+    }
+   ],
+   "settings": {},
+   "position": 4,
+   "status": "PASS",
+   "access": "open",
+   "diagnostics": [],
+   "evidence": {
+    "plugin_sha256": "c1f39671c6709b3e2fcda885fd4ac147486d7c4139b5f0c2831e36a67c5eddf9",
+    "object_sha256": "ea253b068b12ac16700c82227cbae470432dd2ff0c0d8fcdb3e5e59020af3274",
+    "decisions": [
+     "#input-main: 3 claims"
+    ]
+   }
+  },
+  {
+   "id": "#panel-metadata",
+   "name": "Scientific metadata",
+   "plugin": {
+    "pid": "https://example.org/stand-in/plugin/metadata-card",
+    "version": "1.0.0",
+    "kind": "view panel",
+    "name": "metadata-card"
+   },
+   "renderer": {
+    "renderer_id": "metadata-card",
+    "supported_plugin_version": "1.0.0",
+    "channels": {},
+    "palettes": [],
+    "status": "PASS"
+   },
+   "object": {
+    "pid": "https://example.org/stand-in/hamburg-cca-profile-demo",
+    "fragment": null
+   },
+   "inputs": [
+    {
+     "name": "main",
+     "entity": "./",
+     "kind": "Object",
+     "variables": {},
+     "required": true,
+     "formats": [],
+     "access": "open"
+    }
+   ],
+   "settings": {},
+   "position": 5,
+   "status": "PASS",
+   "access": "open",
+   "diagnostics": [],
+   "evidence": {
+    "plugin_sha256": "28dd6237043c8c2305fdc6556b51b8c206afaee488b1ff90d6ba278258746984",
+    "object_sha256": "ea253b068b12ac16700c82227cbae470432dd2ff0c0d8fcdb3e5e59020af3274",
+    "decisions": [
+     "#input-main: the object https://example.org/stand-in/hamburg-cca-profile-demo"
+    ]
+   }
+  }
+ ],
+ "diagnostics": [
+  {
+   "code": "compose.part_not_panel",
+   "level": "info",
+   "message": "1 part(s) of the dashboard are not panels and were not composed: styles.css"
+  }
+ ],
+ "evidence": {
+  "crate_sha256": "f128e06fdbe18b37c890c13a7ece8e884945b9c265475da3df28563c09f42939",
+  "map": "cca-crate-0.9",
+  "overlay": "cca-dashboard-additions",
+  "objects_read": {
+   "https://example.org/stand-in/hamburg-dashboard": "f128e06fdbe18b37c890c13a7ece8e884945b9c265475da3df28563c09f42939",
+   "https://example.org/stand-in/plugin/bivariate-risk-map": "2510721057e1b78e8b62d2aa23c5eaff61dc90df2525fa5ea717b6007a0be679",
+   "https://example.org/stand-in/hamburg-cca-profile-demo": "ea253b068b12ac16700c82227cbae470432dd2ff0c0d8fcdb3e5e59020af3274",
+   "https://example.org/stand-in/plugin/single-variable-map": "a4cbb26194a284debbfbc5bcb4b98f1f7e515efce62efd7f344d0a76e32b37bd",
+   "https://example.org/stand-in/plugin/bivariate-background-map": "85f4959bb7dece3c0032ddca66173c256d8239b6b696df7ceb1418e51de0f673",
+   "https://example.org/stand-in/plugin/claims-list": "c1f39671c6709b3e2fcda885fd4ac147486d7c4139b5f0c2831e36a67c5eddf9",
+   "https://example.org/stand-in/plugin/metadata-card": "28dd6237043c8c2305fdc6556b51b8c206afaee488b1ff90d6ba278258746984"
+  }
+ },
+ "uncomposed_parts": [
+  "styles.css"
+ ]
+}

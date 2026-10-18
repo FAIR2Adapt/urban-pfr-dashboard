@@ -1,0 +1,22 @@
+{
+ "_note": "Input values as recorded by the urban-pfr run that produced the outputs listed with this record. Synthetic demo run; not a real result.",
+ "software": {
+  "name": "urban-pfr",
+  "version": "0.2.1"
+ },
+ "run": {
+  "name": "demo fixture generation",
+  "endTime": "2026-09-18T07:36:47+00:00"
+ },
+ "parameters": {
+  "config_file": "config_hamburg_test_clip.yaml",
+  "aggregation": "mean",
+  "git_commit": "unavailable/uncommitted",
+  "fieldSchema": "urban-pfr/v4",
+  "healpix_depth": 15,
+  "min_buildings_k": 3,
+  "hwb_clip_max": "1.0",
+  "synthetic": true,
+  "synthesis_seed": 20260918
+ }
+}

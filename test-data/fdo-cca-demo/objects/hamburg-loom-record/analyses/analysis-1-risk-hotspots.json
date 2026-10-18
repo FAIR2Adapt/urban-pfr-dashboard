@@ -1,0 +1,321 @@
+{
+ "@id": "_:n1",
+ "@type": "doi:feeb33ad3e4440682a4d",
+ "doi:feeb33ad3e4440682a4d#label": "Identification of non-homogeneous pluvial flood hotspots, by differentiating between mobility-related and well-being-related risk categories. two synthetic focus areas where high mobility-related risk overlaps with high well-being-related risk.",
+ "doi:feeb33ad3e4440682a4d#has_part": {
+  "@id": "_:n2",
+  "@type": "doi:5b66cb584b974b186f37",
+  "doi:5b66cb584b974b186f37#executes": [
+   {
+    "@id": "_:n3",
+    "@type": "doi:abef9f1c0d48853f3e51",
+    "doi:abef9f1c0d48853f3e51#label": "compute_vulnerability",
+    "doi:abef9f1c0d48853f3e51#part_of": {
+     "@id": "_:n4",
+     "@type": "doi:4b99260369df9110f9bd",
+     "doi:4b99260369df9110f9bd#label": "urban-pfr",
+     "doi:4b99260369df9110f9bd#version_info": "0.2.1",
+     "doi:4b99260369df9110f9bd#part_of": {
+      "@id": "_:n5",
+      "@type": "doi:c981d125d1a564c9f573",
+      "doi:c981d125d1a564c9f573#label": "Python",
+      "doi:c981d125d1a564c9f573#version_info": "3.10.0",
+      "doi:c981d125d1a564c9f573#has_support_url": "https://www.python.org"
+     }
+    },
+    "doi:abef9f1c0d48853f3e51#is_implemented_by": "analyzer = PFRAnalyzer(config)\nanalyzer.compute_vulnerability()\n"
+   },
+   {
+    "@id": "_:n6",
+    "@type": "doi:abef9f1c0d48853f3e51",
+    "doi:abef9f1c0d48853f3e51#label": "compute_exposure",
+    "doi:abef9f1c0d48853f3e51#part_of": {
+     "@id": "_:n7",
+     "@type": "doi:4b99260369df9110f9bd",
+     "doi:4b99260369df9110f9bd#label": "urban-pfr",
+     "doi:4b99260369df9110f9bd#version_info": "0.2.1",
+     "doi:4b99260369df9110f9bd#part_of": {
+      "@id": "_:n8",
+      "@type": "doi:c981d125d1a564c9f573",
+      "doi:c981d125d1a564c9f573#label": "Python",
+      "doi:c981d125d1a564c9f573#version_info": "3.10.0",
+      "doi:c981d125d1a564c9f573#has_support_url": "https://www.python.org"
+     }
+    },
+    "doi:abef9f1c0d48853f3e51#is_implemented_by": "analyzer = PFRAnalyzer(config)\nanalyzer.compute_exposure()\n"
+   },
+   {
+    "@id": "_:n9",
+    "@type": "doi:abef9f1c0d48853f3e51",
+    "doi:abef9f1c0d48853f3e51#label": "run_hazard_parallel",
+    "doi:abef9f1c0d48853f3e51#part_of": {
+     "@id": "_:n10",
+     "@type": "doi:4b99260369df9110f9bd",
+     "doi:4b99260369df9110f9bd#label": "urban-pfr",
+     "doi:4b99260369df9110f9bd#version_info": "0.2.1",
+     "doi:4b99260369df9110f9bd#part_of": {
+      "@id": "_:n11",
+      "@type": "doi:c981d125d1a564c9f573",
+      "doi:c981d125d1a564c9f573#label": "Python",
+      "doi:c981d125d1a564c9f573#version_info": "3.10.0",
+      "doi:c981d125d1a564c9f573#has_support_url": "https://www.python.org"
+     }
+    },
+    "doi:abef9f1c0d48853f3e51#is_implemented_by": "run_hazard_parallel(analyzer, n_jobs=n_workers)"
+   },
+   {
+    "@id": "_:n12",
+    "@type": "doi:abef9f1c0d48853f3e51",
+    "doi:abef9f1c0d48853f3e51#label": "compute_risk",
+    "doi:abef9f1c0d48853f3e51#part_of": {
+     "@id": "_:n13",
+     "@type": "doi:4b99260369df9110f9bd",
+     "doi:4b99260369df9110f9bd#label": "urban-pfr",
+     "doi:4b99260369df9110f9bd#version_info": "0.2.1",
+     "doi:4b99260369df9110f9bd#part_of": {
+      "@id": "_:n14",
+      "@type": "doi:c981d125d1a564c9f573",
+      "doi:c981d125d1a564c9f573#label": "Python",
+      "doi:c981d125d1a564c9f573#version_info": "3.10.0",
+      "doi:c981d125d1a564c9f573#has_support_url": "https://www.python.org"
+     }
+    },
+    "doi:abef9f1c0d48853f3e51#is_implemented_by": "analyzer = PFRAnalyzer(config)\nanalyzer.compute_risk()\n"
+   },
+   {
+    "@id": "_:n15",
+    "@type": "doi:abef9f1c0d48853f3e51",
+    "doi:abef9f1c0d48853f3e51#label": "apply_smoothing",
+    "doi:abef9f1c0d48853f3e51#part_of": {
+     "@id": "_:n16",
+     "@type": "doi:4b99260369df9110f9bd",
+     "doi:4b99260369df9110f9bd#label": "urban-pfr",
+     "doi:4b99260369df9110f9bd#version_info": "0.2.1",
+     "doi:4b99260369df9110f9bd#part_of": {
+      "@id": "_:n17",
+      "@type": "doi:c981d125d1a564c9f573",
+      "doi:c981d125d1a564c9f573#label": "Python",
+      "doi:c981d125d1a564c9f573#version_info": "3.10.0",
+      "doi:c981d125d1a564c9f573#has_support_url": "https://www.python.org"
+     }
+    },
+    "doi:abef9f1c0d48853f3e51#is_implemented_by": "analyzer = PFRAnalyzer(config)\nanalyzer.apply_smoothing()\n"
+   }
+  ],
+  "doi:5b66cb584b974b186f37#has_input": [
+   {
+    "@id": "_:n18",
+    "@type": "doi:aff130c76e68ead3862e",
+    "doi:aff130c76e68ead3862e#label": "Synthetic pluvial flood depth layers of the demo run (synthetic values; no real provider)",
+    "doi:aff130c76e68ead3862e#has_part": [
+     {
+      "@id": "_:n19",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "Flood_30cm"
+     },
+     {
+      "@id": "_:n20",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "Flood_40cm"
+     },
+     {
+      "@id": "_:n21",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "Flood_50cm"
+     },
+     {
+      "@id": "_:n22",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "Flood_60cm"
+     },
+     {
+      "@id": "_:n23",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "Flood_70cm"
+     },
+     {
+      "@id": "_:n24",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "Flood_80cm"
+     },
+     {
+      "@id": "_:n25",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "Flood_90cm"
+     },
+     {
+      "@id": "_:n26",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "Flood_100cm"
+     }
+    ],
+    "doi:aff130c76e68ead3862e#has_characteristic": {
+     "@id": "_:n27",
+     "@type": "doi:31483624b5c80014b6c7",
+     "doi:31483624b5c80014b6c7#number_of_rows": 0,
+     "doi:31483624b5c80014b6c7#number_of_columns": 1
+    }
+   },
+   {
+    "@id": "_:n28",
+    "@type": "doi:aff130c76e68ead3862e",
+    "doi:aff130c76e68ead3862e#label": "Synthetic input of the demo run (no real provider)",
+    "doi:aff130c76e68ead3862e#has_part": [
+     {
+      "@id": "_:n29",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "ID"
+     },
+     {
+      "@id": "_:n30",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "Floors"
+     },
+     {
+      "@id": "_:n31",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "Building_type"
+     },
+     {
+      "@id": "_:n32",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "geometry"
+     },
+     {
+      "@id": "_:n33",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "Synthetic street outlines of the demo run (EPSG:25832)"
+     }
+    ],
+    "doi:aff130c76e68ead3862e#has_characteristic": {
+     "@id": "_:n34",
+     "@type": "doi:31483624b5c80014b6c7",
+     "doi:31483624b5c80014b6c7#number_of_rows": 227000,
+     "doi:31483624b5c80014b6c7#number_of_columns": 4
+    }
+   },
+   {
+    "@id": "_:n35",
+    "@type": "doi:aff130c76e68ead3862e",
+    "doi:aff130c76e68ead3862e#label": "Synthetic statistical units with demographic indicators of the demo run (synthetic values; no real provider)",
+    "doi:aff130c76e68ead3862e#has_part": [
+     {
+      "@id": "_:n36",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "StatisticalUnit"
+     },
+     {
+      "@id": "_:n37",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "Residents"
+     },
+     {
+      "@id": "_:n38",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "LivingArea"
+     },
+     {
+      "@id": "_:n39",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "WR"
+     },
+     {
+      "@id": "_:n40",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "C"
+     },
+     {
+      "@id": "_:n41",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "ES"
+     },
+     {
+      "@id": "_:n42",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "EDQ"
+     },
+     {
+      "@id": "_:n43",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "geometry"
+     }
+    ],
+    "doi:aff130c76e68ead3862e#has_characteristic": {
+     "@id": "_:n44",
+     "@type": "doi:31483624b5c80014b6c7",
+     "doi:31483624b5c80014b6c7#number_of_rows": 943,
+     "doi:31483624b5c80014b6c7#number_of_columns": 8
+    }
+   }
+  ],
+  "doi:5b66cb584b974b186f37#has_output": [
+   {
+    "@id": "_:n45",
+    "@type": "doi:aff130c76e68ead3862e",
+    "doi:aff130c76e68ead3862e#label": "Pluvial flood risk per HEALPix cell (public aggregated product; synthetic values). Yellow gradient, MA risk. Purple gradient, WB risk.",
+    "doi:aff130c76e68ead3862e#source_url": "outputs/risk_healpix.fgb",
+    "doi:aff130c76e68ead3862e#has_part": [
+     {
+      "@id": "_:n46",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "PFRMA_smoothed"
+     },
+     {
+      "@id": "_:n47",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "PFRWB_smoothed"
+     },
+     {
+      "@id": "_:n48",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "geometry"
+     }
+    ],
+    "doi:aff130c76e68ead3862e#has_characteristic": {
+     "@id": "_:n49",
+     "@type": "doi:31483624b5c80014b6c7",
+     "doi:31483624b5c80014b6c7#number_of_rows": 5991,
+     "doi:31483624b5c80014b6c7#number_of_columns": 3
+    },
+    "doi:aff130c76e68ead3862e#has_expression": {
+     "@id": "_:n50",
+     "@type": "doi:1f20e66b17a6eb7c2baf",
+     "doi:1f20e66b17a6eb7c2baf#source_url": "figures/figure-1-risk-cells.png"
+    }
+   },
+   {
+    "@id": "_:n51",
+    "@type": "doi:aff130c76e68ead3862e",
+    "doi:aff130c76e68ead3862e#label": "Social vulnerability per HEALPix cell (public aggregated product; synthetic values)",
+    "doi:aff130c76e68ead3862e#source_url": "outputs/vulnerability_healpix.fgb",
+    "doi:aff130c76e68ead3862e#has_part": [
+     {
+      "@id": "_:n52",
+      "@type": "doi:cceac5fb8acf5ade2bf5",
+      "doi:cceac5fb8acf5ade2bf5#label": "geometry"
+     }
+    ],
+    "doi:aff130c76e68ead3862e#has_characteristic": {
+     "@id": "_:n53",
+     "@type": "doi:31483624b5c80014b6c7",
+     "doi:31483624b5c80014b6c7#number_of_rows": 0,
+     "doi:31483624b5c80014b6c7#number_of_columns": 1
+    }
+   }
+  ]
+ },
+ "doi:feeb33ad3e4440682a4d#is_implemented_by": "code/compute_risk_demo.py",
+ "@context": {
+  "doi": "https://doi.org/21.T11969/",
+  "columns": "https://doi.org/21.T11969/0424f6e7026fa4bc2c4a#columns",
+  "col_number": "https://doi.org/21.T11969/65ba00e95e60fb8971e6#number",
+  "col_titles": "https://doi.org/21.T11969/65ba00e95e60fb8971e6#titles",
+  "rows": "https://doi.org/21.T11969/0424f6e7026fa4bc2c4a#rows",
+  "row_number": "https://doi.org/21.T11969/9bf7a8e8909bfd491b38#number",
+  "row_titles": "https://doi.org/21.T11969/9bf7a8e8909bfd491b38#titles",
+  "cells": "https://doi.org/21.T11969/9bf7a8e8909bfd491b38#cells",
+  "column": "https://doi.org/21.T11969/4607bc7c42ac8db29bfc#column",
+  "value": "https://doi.org/21.T11969/4607bc7c42ac8db29bfc#value",
+  "tab_label": "https://doi.org/21.T11969/0424f6e7026fa4bc2c4a#label"
+ }
+}
