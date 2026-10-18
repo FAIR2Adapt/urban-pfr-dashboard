@@ -15,7 +15,15 @@ export function esc(s) {
   return String(s ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// a URL from an object is used as href or src only when it is http(s) or relative; other schemes are dropped
+export function safeUrl(u) {
+  const s = String(u ?? "").trim();
+  return !s || (/^[a-z][a-z0-9+.-]*:/i.test(s) && !/^https?:/i.test(s)) ? "" : s;
 }
 
 export function setLoading(on, msg) {

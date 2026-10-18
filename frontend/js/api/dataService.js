@@ -25,19 +25,15 @@ export function fetchDataset(sourceId) {
 
 export async function fetchResource(url) {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    let detail = "";
+    try { detail = (await res.json()).error || ""; } catch { /* no JSON body */ }
+    throw new Error(`${res.status} ${res.statusText}${detail ? ` — ${detail}` : ""}`);
+  }
   return res.json();
 }
 
 export function resourceUrl(sourceId, resource) {
   if (!resource) return null;
-  if (resource.localPath) return resource.localPath;
-  if (resource.sourceUrl) {
-    return STATIC
-      ? resource.sourceUrl
-      : `/api/sources/${encodeURIComponent(sourceId)}/proxy?url=${encodeURIComponent(
-          resource.sourceUrl
-        )}`;
-  }
-  return null;
+  return resource.localPath || resource.sourceUrl || null;
 }

@@ -1,34 +1,12 @@
 import { state } from "../state.js";
 import { esc } from "../ui/dom.js";
 import { fetchResource, resourceUrl } from "../api/dataService.js";
-import {
-  pfrColor,
-  svGreyColor,
-  svBivarColor,
-  overviewColor,
-  SV_LABELS,
-  PFR_GRID,
-  headTailBreaks,
-  classIndex,
-} from "./colors.js";
+import { svGreyColor, svBivarColor, classIndex } from "./colors.js";
+import { axisTitle, formatValue } from "./classes.js";
+import { drawableChannels, paletteFor } from "./renderers.js";
 
-// LEGACY-COMPAT ONLY: variable mapping for old claim-based demo
-// #TODO remove these names might not be used then after final metadata.
-const LEGACY_VARIABLES = {
-  risk_mobility_accessibility: "smoothed_RIMA",
-  risk_wellbeing: "smoothed_RIWB",
-  social_vulnerability: "SVF",
-  sensitivity: "Sensitivity",
-  coping_capacity: "CC",
-  cell_id: "healpix_id",
-  aggregation_count: "n_buildings",
-};
-
-// TODO check this final Hard cap mirroring the server-side FGB bbox limit.
+// Features read per layer and viewport when the layer does not state its cap (max_features_per_read in config/formats.yaml).
 const BBOX_LIMIT = 20000;
-
-const boundariesData = () => state.dataset?.layers?.boundaries?.data || null;
-const riskData = () => state.dataset?.layers?.riskMap?.data || null;
 
 function track(layer) {
   layer.addTo(state.map);
@@ -39,122 +17,9 @@ function track(layer) {
 export function clearLayers() {
   for (const layer of state.activeLayers) state.map.removeLayer(layer);
   state.activeLayers = [];
-}
-
-export function addOutline() {
-  const data = boundariesData();
-  if (!data) return;
-  track(
-    L.geoJSON(data, {
-      style: () => ({ fill: false, color: "#1e3a5f", weight: 0.7, opacity: 0.7 }),
-    })
-  );
-}
-
-export function addGreySV() {
-  const data = boundariesData();
-  if (!data) return;
-  track(
-    L.geoJSON(data, {
-      style: (f) => {
-        const cls = +(f.properties.sv_class || 0);
-        const alpha = [0.05, 0.28, 0.5, 0.68][cls] ?? 0.05;
-        return {
-          fillColor: svGreyColor(cls),
-          fillOpacity: alpha,
-          color: "#9e9e9e",
-          weight: 0.4,
-          opacity: 0.6,
-        };
-      },
-      onEachFeature: (f, l) => l.bindPopup(unitPopup(f)),
-    })
-  );
-}
-
-export function addBivarSV() {
-  const data = boundariesData();
-  if (!data) return;
-  track(
-    L.geoJSON(data, {
-      style: (f) => ({
-        fillColor: svBivarColor(f.properties.sens_idx, f.properties.coping_idx),
-        fillOpacity: 0.62,
-        color: "#9e9e9e",
-        weight: 0.4,
-        opacity: 0.5,
-      }),
-      onEachFeature: (f, l) => l.bindPopup(unitPopup(f)),
-    })
-  );
-}
-
-export function addRiskPoints() {
-  const data = riskData();
-  if (!data) return;
-  track(
-    L.geoJSON(data, {
-      pointToLayer: (f, latlng) =>
-        L.circleMarker(latlng, {
-          radius: 2.8,
-          fillColor: pfrColor(f.properties),
-          color: "#444",
-          weight: 0.25,
-          opacity: 0.8,
-          fillOpacity: 0.92,
-        }),
-      onEachFeature: (f, l) => l.bindPopup(buildingPopup(f)),
-    })
-  );
-}
-
-export function addOverviewPoints() {
-  const data = riskData();
-  if (!data) return;
-  track(
-    L.geoJSON(data, {
-      pointToLayer: (f, latlng) => {
-        const r = Math.max(+f.properties.rima, +f.properties.riwb);
-        return L.circleMarker(latlng, {
-          radius: 3,
-          fillColor: overviewColor(r),
-          color: "#333",
-          weight: 0.4,
-          opacity: 0.8,
-          fillOpacity: 0.85,
-        });
-      },
-      onEachFeature: (f, l) => l.bindPopup(buildingPopup(f)),
-    })
-  );
-}
-
-function buildingPopup(f) {
-  const p = f.properties;
-  const col = pfrColor(p);
-  return `<div style="font-size:12px;min-width:170px">
-    <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px">
-      <div style="width:14px;height:14px;border-radius:3px;background:${col};border:1px solid #555"></div>
-      <strong>Building ${esc(p.id || "–")}</strong>
-    </div>
-    <table style="border-collapse:collapse;width:100%">
-      <tr><td style="color:#64748b;padding:1px 4px">RIMA (MA)</td>
-          <td style="text-align:right;font-weight:600">${(+p.rima).toFixed(5)}</td></tr>
-      <tr><td style="color:#64748b;padding:1px 4px">RIWB (WB)</td>
-          <td style="text-align:right;font-weight:600">${(+p.riwb).toFixed(5)}</td></tr>
-      <tr><td style="color:#64748b;padding:1px 4px">SVF</td>
-          <td style="text-align:right">${(+p.svf).toFixed(4)}</td></tr>
-      <tr><td style="color:#64748b;padding:1px 4px">Grid (WB,MA)</td>
-          <td style="text-align:right">${p.wb_idx},${p.ma_idx}</td></tr>
-    </table></div>`;
-}
-
-function unitPopup(f) {
-  const p = f.properties;
-  return `<div style="font-size:12px">
-    <strong>Statistical Unit</strong><br>
-    SV: <b>${SV_LABELS[+(p.sv_class || 0)]}</b> &nbsp; SVF=${(+(p.svf_value || 0)).toFixed(4)}
-  </div>`;
+  // one canvas per draw: paths removed from a shared canvas can keep their pixels until it repaints
+  if (state.map.options.renderer) state.map.removeLayer(state.map.options.renderer);
+  state.map.options.renderer = L.canvas();
 }
 
 async function cachedFetch(url) {
@@ -167,249 +32,144 @@ async function cachedFetch(url) {
   } catch (e) {
     console.warn("Could not fetch resource:", url, e.message);
     state.fetchedLayers[url] = null;
+    state.drawErrors.push(`${url.split("?")[0].split("/").pop()}: ${e.message}`);   // shown in the header and the console
     return null;
   }
 }
 
-async function fetchLayerData(sourceId, output) {
-  const url = resourceUrl(sourceId, output);
+// A FlatGeobuf file is read by bounding box in the browser: the reader follows the file's spatial index with HTTP
+// range requests, so a static host serves it like a server does. Capped at `limit` features, as the header says.
+async function fetchFgbBbox(url, bounds, limit = BBOX_LIMIT) {
+  const key = `${url}#${bounds.map((v) => v.toFixed(5)).join(",")}`;
+  if (key in state.fetchedLayers) return state.fetchedLayers[key];
+  if (typeof flatgeobuf === "undefined") {
+    state.drawErrors.push(`${url.split("/").pop()}: the FlatGeobuf reader is not loaded`);
+    return null;
+  }
+  const rect = { minX: bounds[0], minY: bounds[1], maxX: bounds[2], maxY: bounds[3] };
+  const features = [];
+  let truncated = false;
+  try {
+    for await (const feature of flatgeobuf.deserialize(url, rect)) {
+      if (features.length >= limit) { truncated = true; break; }
+      features.push(feature);
+    }
+  } catch (e) {
+    console.warn("Could not read FlatGeobuf:", url, e.message);
+    state.fetchedLayers[key] = null;
+    state.drawErrors.push(`${url.split("/").pop()}: ${e.message}`);
+    return null;
+  }
+  const geo = { type: "FeatureCollection", features, truncated };
+  state.fetchedLayers[key] = geo;
+  return geo;
+}
+
+async function fetchLayerData(sourceId, output, bounds = null) {
+  const file = output.engines ? output.engines.leaflet : null;
+  if (output.engines && !file) {   // nothing this engine reads: the server's reason, per declared file
+    state.drawErrors.push(`${output.label || "layer"}: not drawn by the Leaflet fallback (${output.unread?.leaflet || "no readable file"})`);
+    return null;
+  }
+  const url = file ? file.path : resourceUrl(sourceId, output);
   if (!url) return null;
-  const strategy = output.renderingStrategy || "";
-  if (strategy.startsWith("fgb-bbox") && state.map) {
+  const strategy = file ? (file.reader === "fgb-bbox" ? "fgb-bbox" : "static") : (output.renderingStrategy || "");
+  if (strategy.startsWith("fgb-bbox") && (bounds || state.map)) {
     const b = state.map.getBounds();
-    const bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]
-      .map((v) => v.toFixed(5))
-      .join(",");
-    return cachedFetch(`${url}?bbox=${bbox}&limit=${BBOX_LIMIT}`);
+    return fetchFgbBbox(url, bounds || [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()], file?.maxFeatures || BBOX_LIMIT);
   }
   return cachedFetch(url);
 }
 
-export async function addRocrateOutput(sourceId, output) {
-  const geo = await fetchLayerData(sourceId, output);
-  if (!geo) return null;
-  const feats = geo.features || [];
-  const V = output.variables && Object.keys(output.variables).length
-    ? output.variables
-    : LEGACY_VARIABLES;
-  const cls = output.classification || {};
-  const role = output.role || "";
-  const hasVar = (name) =>
-    V[name] &&
-    ((output.fields || []).includes(V[name]) ||
-      feats.some((f) => f.properties && V[name] in f.properties));
+// isCurrent: false once a newer render has started; a stale render must not add its layer after the fetch
+// Leaflet drawing per renderer id (capabilities: renderers.js): each draws one panel from its layer's channels
+// (column + declared class breaks); no variable name of a case study appears here, and no breaks are computed.
+const DRAW = {
+  "bivariate-map": drawBivariate,
+  "single-variable-map": drawSingleVariable,
+  "bivariate-background": drawBivariateBackground,
+  "outline": drawOutline,
+  "outline-focus": drawOutline,
+};
 
-  if (role.includes("risk-layer") || hasVar("risk_mobility_accessibility")) {
-    addRiskSurface(geo, feats, V, cls);
-  } else if (role.includes("drivers") || (hasVar("sensitivity") && hasVar("coping_capacity"))) {
-    const sKey = V.sensitivity, cKey = V.coping_capacity;
-    const sB = cls.breaks_sensitivity?.length
-      ? cls.breaks_sensitivity
-      : headTailBreaks(feats.map((f) => +f.properties?.[sKey] || 0), 2);
-    const cB = cls.breaks_coping?.length
-      ? cls.breaks_coping
-      : headTailBreaks(feats.map((f) => +f.properties?.[cKey] || 0), 2);
-    track(
-      L.geoJSON(geo, {
-        style: (f) => ({
-          fillColor: svBivarColor(
-            classIndex(+f.properties?.[sKey] || 0, sB),
-            classIndex(+f.properties?.[cKey] || 0, cB)
-          ),
-          color: "#9e9e9e",
-          weight: 0.4,
-          opacity: 0.5,
-          fillOpacity: 0.62,
-        }),
-        onEachFeature: (f, l) => l.bindPopup(genericPopup(f, output.label)),
-      })
-    );
-  } else if (role.includes("social-vulnerability") || hasVar("social_vulnerability")) {
-    const svKey = V.social_vulnerability;
-    const svB = cls.breaks_sv?.length
-      ? cls.breaks_sv
-      : headTailBreaks(feats.map((f) => +f.properties?.[svKey] || 0));
-    track(
-      L.geoJSON(geo, {
-        style: (f) => ({
-          fillColor: svGreyColor(classIndex(+f.properties?.[svKey] || 0, svB)),
-          color: "#9e9e9e",
-          weight: 0.4,
-          opacity: 0.6,
-          fillOpacity: 0.55,
-        }),
-        onEachFeature: (f, l) => l.bindPopup(genericPopup(f, output.label)),
-      })
-    );
-  } else {
-    track(
-      L.geoJSON(geo, {
-        style: () => ({ color: "#1e3a5f", weight: 0.7, opacity: 0.8, fillColor: "#1e3a5f", fillOpacity: 0.06 }),
-        onEachFeature: (f, l) => l.bindPopup(genericPopup(f, output.label)),
-      })
-    );
-  }
+// isCurrent: false once a newer render has started; a stale render must not add its layer after the fetch
+export async function addPanel(sourceId, panel, isCurrent = () => true, bounds = null) {
+  const layer = panel.layer;
+  const draw = DRAW[panel.renderer];
+  if (!layer || !draw || !drawableChannels(panel.renderer, layer)) return null;
+  const geo = await fetchLayerData(sourceId, layer, bounds);
+  if (!geo || !isCurrent()) return null;
+  draw(geo, geo.features || [], layer, panel);
   return geo;
 }
 
-function addRiskSurface(geo, feats, V = LEGACY_VARIABLES, cls = {}) {
-  const maKey = V.risk_mobility_accessibility;
-  const wbKey = V.risk_wellbeing;
-  const p0 = feats[0]?.properties || {};
-  const aggregated =
-    (V.cell_id && V.cell_id in p0) || (V.aggregation_count && V.aggregation_count in p0);
-  const maBreaks = cls.breaks_ma?.length
-    ? cls.breaks_ma
-    : headTailBreaks(feats.map((f) => +f.properties?.[maKey] || 0));
-  const wbBreaks = cls.breaks_wb?.length
-    ? cls.breaks_wb
-    : headTailBreaks(feats.map((f) => +f.properties?.[wbKey] || 0));
-  const colorFor = (p) =>
-    PFR_GRID[classIndex(+p?.[wbKey] || 0, wbBreaks)][classIndex(+p?.[maKey] || 0, maBreaks)];
+const clampTo = (value, max) => Math.min(Math.max(+value || 0, 0), max);
+const outlineOpacity = (o) => (state.map.getZoom() >= 12.5 ? o : 0);   // outlines only where a cell is wide enough to carry one
 
-  const keep = (p) =>
-    classIndex(+p?.[maKey] || 0, maBreaks) > 0 ||
-    classIndex(+p?.[wbKey] || 0, wbBreaks) > 0;
+// a value is a finite number; a missing, null, empty or non-numeric cell is "no data" and is not drawn (the legend says so)
+// Profile attribute TBD: no-data value per Variable; a missing or non-numeric value is not drawn
+const finite = (v) => typeof v === "number" && Number.isFinite(v);   // as the MapLibre filter: numbers only
+const hasValues = (p, columns) => columns.every((k) => finite(p?.[k]));
 
-  const pts = [];
-  const props = [];
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const f of feats) {
-    const c = centroidLonLat(f.geometry);
-    if (!c) continue;
-    pts.push(c);
-    props.push(f.properties);
-    minX = Math.min(minX, c[0]); maxX = Math.max(maxX, c[0]);
-    minY = Math.min(minY, c[1]); maxY = Math.max(maxY, c[1]);
-  }
-
-  const FOOTPRINT_MAX = 3000;
-  const isPolygon = /Polygon/.test(feats[0]?.geometry?.type || "");
-  const footprintMode = isPolygon && (aggregated || feats.length <= FOOTPRINT_MAX);
-
-  if (!footprintMode && pts.length && typeof d3 !== "undefined" && d3.Delaunay) {
-    const pad = 0.003;
-    const voronoi = d3.Delaunay.from(pts).voronoi([minX - pad, minY - pad, maxX + pad, maxY + pad]);
-
-    const cap = Math.sqrt(((maxX - minX) * (maxY - minY)) / Math.max(pts.length, 1)) * 1.2;
-    const cells = [];
-    for (let i = 0; i < pts.length; i++) {
-      if (!keep(props[i])) continue;
-      const cell = voronoi.cellPolygon(i);
-      if (!cell) continue;
-      const [cx, cy] = pts[i];
-      const clipped = clipToBox(cell, cx - cap, cy - cap, cx + cap, cy + cap);
-      if (!clipped || clipped.length < 3) continue;
-      const col = colorFor(props[i]);
-      cells.push(
-        L.polygon(
-          clipped.map(([x, y]) => [y, x]),
-          { color: col, weight: 0.5, fillColor: col, fillOpacity: 0.8 }
-        ).bindPopup(riskFieldPopup({ properties: props[i] }, V))
-      );
-    }
-    track(L.layerGroup(cells));
-    return;
-  }
-
-  track(
-    L.geoJSON(geo, {
-      filter: (f) => (aggregated ? keep(f.properties) : footprintMode || keep(f.properties)),
-      style: (f) => ({
-        fillColor: colorFor(f.properties),
-        color: aggregated ? "#666" : "#555",
-        weight: aggregated ? 0.4 : footprintMode ? 0.7 : 0.3,
-        opacity: aggregated ? 0.6 : footprintMode ? 0.9 : 0.5,
-        fillOpacity: aggregated ? 0.75 : 0.85,
-      }),
-      pointToLayer: (f, ll) =>
-        L.circleMarker(ll, { radius: 3, fillColor: colorFor(f.properties), color: "#333", weight: 0.3, fillOpacity: 0.9 }),
-      onEachFeature: (f, l) => l.bindPopup(riskFieldPopup(f, V)),
-    })
-  );
+function drawSingleVariable(geo, feats, layer, panel) {
+  const ch = layer.channels.value, key = ch.column, breaks = ch.breaks;
+  const steps = paletteFor(panel.renderer, layer)?.steps || [];
+  track(L.geoJSON(geo, {
+    filter: (f) => hasValues(f.properties, [key]),
+    style: (f) => ({ fillColor: steps[clampTo(classIndex(+f.properties[key], breaks), steps.length - 1)] || svGreyColor(0), color: "#9e9e9e", weight: 0.4, opacity: outlineOpacity(0.6), fillOpacity: 0.55 }),
+    onEachFeature: (f, l) => l.bindPopup(fieldsPopup(f, layer)),
+  }));
 }
 
-function clipToBox(poly, xmin, ymin, xmax, ymax) {
-  const clip = (pts, inside, intersect) => {
-    const out = [];
-    for (let i = 0; i < pts.length; i++) {
-      const a = pts[i];
-      const b = pts[(i + 1) % pts.length];
-      const ain = inside(a);
-      const bin = inside(b);
-      if (ain) {
-        out.push(a);
-        if (!bin) out.push(intersect(a, b));
-      } else if (bin) {
-        out.push(intersect(a, b));
-      }
-    }
-    return out;
+function drawBivariateBackground(geo, feats, layer, panel) {
+  const x = layer.channels.x, y = layer.channels.y;
+  const grid = paletteFor(panel.renderer, layer)?.grid;
+  const colorFor = (p) => {
+    const xi = classIndex(+p[x.column], x.breaks), yi = classIndex(+p[y.column], y.breaks);
+    return grid ? grid[clampTo(yi, grid.length - 1)][clampTo(xi, grid[0].length - 1)] : svBivarColor(xi, yi);
   };
-  let p = poly;
-  p = clip(p, (q) => q[0] >= xmin, (a, b) => { const t = (xmin - a[0]) / (b[0] - a[0]); return [xmin, a[1] + t * (b[1] - a[1])]; });
-  if (!p.length) return null;
-  p = clip(p, (q) => q[0] <= xmax, (a, b) => { const t = (xmax - a[0]) / (b[0] - a[0]); return [xmax, a[1] + t * (b[1] - a[1])]; });
-  if (!p.length) return null;
-  p = clip(p, (q) => q[1] >= ymin, (a, b) => { const t = (ymin - a[1]) / (b[1] - a[1]); return [a[0] + t * (b[0] - a[0]), ymin]; });
-  if (!p.length) return null;
-  p = clip(p, (q) => q[1] <= ymax, (a, b) => { const t = (ymax - a[1]) / (b[1] - a[1]); return [a[0] + t * (b[0] - a[0]), ymax]; });
-  return p.length ? p : null;
+  track(L.geoJSON(geo, {
+    filter: (f) => hasValues(f.properties, [x.column, y.column]),
+    style: (f) => ({ fillColor: colorFor(f.properties),
+      color: "#9e9e9e", weight: 0.4, opacity: outlineOpacity(0.5), fillOpacity: 0.62 }),
+    onEachFeature: (f, l) => l.bindPopup(fieldsPopup(f, layer)),
+  }));
 }
 
-function centroidLonLat(geom) {
-  if (!geom) return null;
-  let ring;
-  switch (geom.type) {
-    case "Point":
-      return geom.coordinates.slice(0, 2);
-    case "Polygon":
-      ring = geom.coordinates[0];
-      break;
-    case "MultiPolygon":
-      ring = geom.coordinates[0] && geom.coordinates[0][0];
-      break;
-    default:
-      return null;
-  }
-  if (!ring || !ring.length) return null;
-  let sx = 0, sy = 0;
-  for (const [x, y] of ring) {
-    sx += x;
-    sy += y;
-  }
-  return [sx / ring.length, sy / ring.length];
+function drawOutline(geo, feats, layer, panel) {
+  const focus = panel.renderer === "outline-focus";
+  track(L.geoJSON(geo, {
+    style: () => (focus ? { fill: false, color: "#000", weight: 2, opacity: 0.9 } : { color: "#1e3a5f", weight: 0.7, opacity: 0.8, fillColor: "#1e3a5f", fillOpacity: 0.06 }),
+    onEachFeature: (f, l) => l.bindPopup(fieldsPopup(f, layer)),
+  }));
 }
 
-function riskFieldPopup(f, V = LEGACY_VARIABLES) {
+function drawBivariate(geo, feats, layer, panel) {
+  const x = layer.channels.x, y = layer.channels.y;
+  const maKey = x.column, wbKey = y.column;
+  const maBreaks = x.breaks, wbBreaks = y.breaks;
+  const grid = paletteFor(panel.renderer, layer).grid;
+  const colorFor = (p) => grid[clampTo(classIndex(+p[wbKey], wbBreaks), grid.length - 1)][clampTo(classIndex(+p[maKey], maBreaks), grid[0].length - 1)];
+  // Profile attribute TBD: display rule for the lowest class; cells below the first break on both axes are left out
+  const keep = (p) => hasValues(p, [maKey, wbKey]) && (classIndex(+p[maKey], maBreaks) > 0 || classIndex(+p[wbKey], wbBreaks) > 0);
+
+  let noValue = 0, belowFirstBreak = 0;
+  for (const f of feats) { if (!hasValues(f.properties, [maKey, wbKey])) noValue++; else if (!keep(f.properties)) belowFirstBreak++; }
+  geo.leftOut = { total: feats.length, noValue, belowFirstBreak };   // read by the legend (app.js keeps it per panel)
+  track(L.geoJSON(geo, {   // cells drawn as they are; no data and classes below the first break are left out
+    filter: (f) => keep(f.properties),
+    style: (f) => ({ fillColor: colorFor(f.properties), color: "#666", weight: 0.4, opacity: outlineOpacity(0.6), fillOpacity: 0.75 }),
+    pointToLayer: (f, ll) => L.circleMarker(ll, { radius: 3, fillColor: colorFor(f.properties), color: "#333", weight: 0.3, fillOpacity: 0.9 }),
+    onEachFeature: (f, l) => l.bindPopup(fieldsPopup(f, layer)),
+  }));
+}
+
+// one cell: each bound column with the title the object gives it (classes.js) and its value
+function fieldsPopup(f, layer) {
   const p = f.properties || {};
-  const num = (v) => (Number.isFinite(+v) ? (+v).toFixed(6) : "–");
-  const cellId = V.cell_id && p[V.cell_id];
-  const nBuild = V.aggregation_count && p[V.aggregation_count];
-  const rows = [
-    [V.risk_mobility_accessibility, num(p[V.risk_mobility_accessibility])],
-    [V.risk_wellbeing, num(p[V.risk_wellbeing])],
-  ];
-  if (nBuild !== undefined && nBuild !== null) rows.push([V.aggregation_count, esc(nBuild)]);
-  return `<div style="font-size:12px;min-width:150px">
-    <strong>${esc(p.id || (cellId ? `Cell ${cellId}` : "Building"))}</strong>
+  const columns = [...new Set([...Object.values(layer.variables || {}), ...(layer.fields || [])])].filter((c) => c in p).slice(0, 8);   // declared order
+  return `<div style="font-size:12px;min-width:150px"><strong>${esc(layer.label || "")}</strong>
     <table style="border-collapse:collapse;width:100%;margin-top:4px">
-      ${rows.map(([k, v]) => `<tr><td style="color:#64748b;padding:1px 4px">${esc(k)}</td>
-          <td style="text-align:right;font-weight:600">${v}</td></tr>`).join("")}
+      ${columns.map((k) => `<tr><td style="color:#64748b;padding:1px 4px" title="${esc(k)}">${esc(axisTitle({ column: k }, layer))}</td><td style="text-align:right;font-weight:600">${esc(formatValue(p[k]))}</td></tr>`).join("")}
     </table></div>`;
-}
-
-function genericPopup(f, label) {
-  const p = f.properties || {};
-  const keys = Object.keys(p).filter((k) => k.toLowerCase() !== "geometry").slice(0, 6);
-  const rows = keys
-    .map(
-      (k) => `<tr><td style="color:#64748b;padding:1px 4px">${esc(k)}</td>
-        <td style="text-align:right">${esc(p[k])}</td></tr>`
-    )
-    .join("");
-  return `<div style="font-size:12px;min-width:150px">
-    <strong>${esc(label || "Feature")}</strong>
-    ${rows ? `<table style="border-collapse:collapse;width:100%;margin-top:4px">${rows}</table>` : ""}
-  </div>`;
 }

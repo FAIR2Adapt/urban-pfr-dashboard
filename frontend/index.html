@@ -4,7 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Flood-Risk Dashboard</title>
-  <!-- all libraries vendored/local — no CDN at runtime (see vendor/README.md) -->
+  <!-- all libraries vendored under vendor/, no CDN at run time (README, "Built with") -->
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css"/>
   <link rel="stylesheet" href="vendor/maplibre-gl.css"/>
   <link rel="stylesheet" href="styles.css"/>
@@ -30,7 +30,7 @@
     <div class="section" id="visualizationSelector">
       <div class="viz-setup" id="vizSetup">
         <p class="viz-setup-title">No data configured yet</p>
-        <p class="viz-setup-hint">See the README — <em>Adding and converting data</em> — for the full guide.</p>
+        <p class="viz-setup-hint">See the README section <em>Configuration</em>.</p>
       </div>
     </div>
 
@@ -40,8 +40,8 @@
     </div>
 
     <div class="section" id="metadataSection" style="display:none">
-      <h3 class="section-title">Metadata</h3>
-      <a id="metaToggle" class="meta-link" role="button" tabindex="0" aria-pressed="false">Scientific metadata</a>
+      <h3 class="section-title">Record</h3>
+      <button type="button" id="metaToggle" class="meta-link" aria-pressed="false" aria-controls="recordPanel">Statements and data</button>
     </div>
   </aside>
 
@@ -53,6 +53,9 @@
       </div>
     </header>
 
+    <section id="contextStrip" class="context-strip hidden" aria-label="Scientific context of the map"></section>
+
+    <div class="work">
     <div class="map-container">
       <div id="map"></div>
       <div id="glmap" style="display:none"></div>
@@ -67,22 +70,29 @@
         <div id="legendContent"></div>
       </div>
 
-      <div id="metaOverlay" class="meta-overlay hidden">
-        <div class="meta-overlay-header">
-          <h4>Scientific metadata</h4>
-          <span class="meta-overlay-close" id="metaClose">✕</span>
+    </div>
+
+    <aside id="recordPanel" class="record-panel hidden" aria-label="Record">
+      <div class="rp-head">
+        <div class="rp-title">
+          <span class="rp-kind" id="rpKind">Record</span>
+          <h3 id="rpTitle"></h3>
+          <p id="rpMeta"></p>
         </div>
-        <div id="metaContent"></div>
+        <button type="button" class="rp-close" id="metaClose" aria-label="Close the record panel">✕</button>
       </div>
+      <div class="rp-tabs" role="tablist" id="rpTabs"></div>
+      <div class="rp-body" id="rpBody"></div>
+    </aside>
     </div>
   </main>
 </div>
 
 <script src="vendor/leaflet/leaflet.js"></script>
 
-<script src="vendor/d3-delaunay.min.js"></script>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
+<script src="vendor/flatgeobuf/flatgeobuf-geojson.min.js"></script>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>
