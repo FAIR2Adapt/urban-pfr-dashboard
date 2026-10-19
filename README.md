@@ -58,23 +58,6 @@ generated.
 The Knowledge Loom export does not declare its profile; `evidence.profile` in `config/dashboard.yaml` and
 `locator.profile` in `config/sources.json` name it.
 
-## Test data
-
-All test data is synthetic and contains no real results.
-
-| folder | content |
-|---|---|
-| `test-data/fdo-cca-demo` | Hamburg and Bremen Data FDOs (CCA profile with the dashboard additions), their Knowledge Loom records (profile 0.1.0 shape), the Dashboard FDOs and the Plugin FDOs |
-
-A source whose objects are absent (`requires` in `config/sources.json`) is listed as planned. The objects were built
-by `scripts/build_composition_fdos.py`, `scripts/build_bremen_objects.py` and `scripts/build_loom_records.py`; their
-inputs are not in the repository.
-
-## Logs
-
-The fdo-consume record of each source (statuses and steps that did not pass) is written to
-`logs/fdo-consume/<source>.json`. It is not shown in the dashboard; `logs/` is git-ignored.
-
 ## Development
 
 ```bash
@@ -102,21 +85,6 @@ server needs no geospatial library; `pyogrio` is optional and only checks declar
 
 JavaScript libraries are vendored in `frontend/vendor/`; no bundler or package registry is needed. The basemaps are the
 only run-time dependency on another server.
-
-## GitHub Pages
-
-`.github/workflows/dashboard.yml` runs the tests, builds the static site from the test data and publishes it. It
-installs fdo-consume from `FAIR2Adapt/fdo-consume` at `v1.1.0` (repository variables `FDO_CONSUME_REPOSITORY` and
-`FDO_CONSUME_REF`). Set Pages to "GitHub Actions" in the repository settings. The CI job `composer` runs the composer
-tests against the same revision.
-
-| path | default view |
-|---|---|
-| `/` | the dashboard |
-| `/composed/` | composed from the Dashboard FDO |
-| `/loom/` | Knowledge Loom record: statements from the record, map from the Data FDO it is based on |
-| `/combined/` | Data FDO + Knowledge Loom record |
-| `/bremen/` | Bremen, composed from its Dashboard FDO |
 
 ## Docker
 
