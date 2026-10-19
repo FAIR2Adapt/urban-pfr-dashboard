@@ -1,6 +1,9 @@
 services:
   flood-risk-dashboard:
-    build: .
+    build:
+      context: .
+      args:
+        FDO_CONSUME_PIP: "https://github.com/FAIR2Adapt/fdo-consume/archive/v1.1.0.tar.gz"
     image: flood-risk-dashboard
     container_name: flood-risk-dashboard
     ports:
