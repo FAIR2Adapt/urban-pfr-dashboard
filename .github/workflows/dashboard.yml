@@ -2,7 +2,8 @@ name: dashboard
 
 on:
   push:
-    branches: [main, feature/dashboard-composer]
+    branches: [main]
+    paths-ignore: ["**.md"]
   workflow_dispatch:
 
 permissions:

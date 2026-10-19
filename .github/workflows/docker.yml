@@ -2,7 +2,8 @@ name: Docker
 
 on:
   push:
-  pull_request:
+    branches: [main]
+    paths: [Dockerfile, docker-compose.yml, requirements.txt, server.py, "backend/**", "config/**", ".github/workflows/docker.yml"]
   workflow_dispatch:
 
 permissions:
