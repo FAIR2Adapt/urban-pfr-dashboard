@@ -12,6 +12,13 @@ This dashboard visualizes **urban pluvial flood-risk** from RO-Crate research pa
   annotations read from the source RO-Crates.
 ---
 
+## Online demo
+
+GitHub Pages serves a static build of the dashboard with **synthetic demo data** (Hamburg and Bremen, no real results):
+
+- <https://fair2adapt.github.io/urban-pfr-dashboard/>
+---
+
 ## Quick start
 
 **local:**
