@@ -39,6 +39,7 @@ class SourcesConfig:
                 "label": s.get("label", s.get("id")),
                 "city": city_of(s),
                 "adapter": s.get("adapter"),
+                "profile": (s.get("locator") or {}).get("profile"),
                 "enabled": bool(s.get("enabled")),
                 "note": s.get("note"),
             }

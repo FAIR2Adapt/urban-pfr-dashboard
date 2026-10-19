@@ -4,7 +4,8 @@ import { $, mkEl } from "./dom.js";
 // The dropdown lists cities, not sources. A source is one object that serves a city (`city` in the source config);
 // a deployment may list several sources for one city (demo, comparison). Which one a city shows is decided here,
 // once, by one rule: the source already selected (the URL's ?source=), else the one last shown for that city in this
-// session, else the configured default, else config order.
+// session, else one of the same kind as a source shown now (adapter and profile), else the configured default, else
+// config order.
 const ALL = "__all__";
 
 export const cityName = (s) => s.city || s.label || s.id;
@@ -21,10 +22,13 @@ function cities() {
   return out;
 }
 
+const kindOf = (s) => `${s.adapter}|${s.profile || ""}`;
+
 export function sourceForCity(name) {
   const own = state.sources.filter((s) => s.enabled && cityName(s) === name);
+  const shown = new Set(state.sources.filter((s) => state.selectedSourceIds.includes(s.id)).map(kindOf));
   const chosen = own.find((s) => state.selectedSourceIds.includes(s.id)) || own.find((s) => s.id === state.sourceByCity[name]) ||
-    own.find((s) => s.id === state.defaultSource) || own[0] || null;
+    own.find((s) => shown.has(kindOf(s))) || own.find((s) => s.id === state.defaultSource) || own[0] || null;
   if (chosen) state.sourceByCity[name] = chosen.id;   // a city keeps the object it was last shown from in this session
   return chosen;
 }
