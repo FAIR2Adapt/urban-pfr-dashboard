@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   backend:
-    name: Backend
+    name: Backend (without fdo-consume)
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -28,8 +28,8 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install ruff pytest
+          pip install -r requirements.txt
+          pip install ruff
 
       - name: Lint
         run: ruff check --select E9,F63,F7,F82 backend server.py scripts
@@ -37,21 +37,63 @@ jobs:
       - name: Compile
         run: python -m compileall -q backend server.py scripts
 
-      - name: Contract check, if usable
-        run: |
-          if [ -f scripts/check_dashboard_contract.py ]; then
-            python scripts/check_dashboard_contract.py || echo "Contract check skipped or incomplete: no public fixture/private data in CI."
-          else
-            echo "No contract check script yet."
-          fi
+      - name: Tests
+        if: ${{ hashFiles('tests/**/test_*.py') != '' }}   # skipped, not failed, where the test folder is absent
+        run: python -m unittest discover -s tests
 
-      - name: Tests, if present
+  composer:
+    name: Composer (pinned fdo-consume)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The reader of the FDOs, at the revision this dashboard was tested with. The repository variables
+      # FDO_CONSUME_REPOSITORY and FDO_CONSUME_REF override the default (FAIR2Adapt/fdo-consume at v1.1.0).
+      - name: Check out fdo-consume
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.FDO_CONSUME_REPOSITORY || format('{0}/fdo-consume', github.repository_owner) }}
+          ref: ${{ vars.FDO_CONSUME_REF || 'v1.1.0' }}
+          path: fdo-consume
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
         run: |
-          if [ -d tests ]; then
-            pytest -q
-          else
-            echo "No tests directory."
-          fi
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ./fdo-consume
+          pip install jsonschema
+
+      - name: Verify the reader
+        run: |
+          python -c "import fdo_consume, sys; v = fdo_consume.__version__; print('fdo-consume', v); sys.exit(0 if v.startswith('1.') else 1)"
+          python -c "from fdo_consume import consume, consume_for_contracts"
+          python -c "from fdo_consume.contracts import load_contract; [load_contract(n, folder='config/fdo/contracts', profile_maps='config/fdo/maps') for n in ('cs3-map-v1', 'cs3-claims-v1', 'cs3-metadata-v1', 'cs3-evidence-v1', 'dashboard-composition-v1', 'plugin-description-v1', 'composer-object-v1')]"
+
+      - name: Tests
+        if: ${{ hashFiles('tests/**/test_*.py') != '' }}   # skipped, not failed, where the test folder is absent
+        env:
+          FDO_CONSUME_REQUIRED: "1"
+        run: python -m unittest discover -s tests
+
+      - name: Plan schema
+        run: |
+          python -c "
+          import json, jsonschema, sys
+          sys.path.insert(0, '.')
+          from backend.api import routes
+          from backend.config import load_config
+          schema = json.load(open('backend/composer/plan.schema.json'))
+          for sid in ('fdo-dashboard-demo', 'fdo-dashboard-alternative'):
+              jsonschema.validate(routes.load_dataset_dict(load_config('.'), sid)['plan'], schema)
+              print(sid, 'plan valid')
+          "
 
   frontend:
     name: Frontend
@@ -67,20 +109,8 @@ jobs:
 
       - name: Check JavaScript
         run: |
-          if [ -d frontend/js ]; then
-            echo '{"type":"module"}' > frontend/js/package.json
-            find frontend/js -name '*.js' -print0 | xargs -0 -n1 node --check
-            rm -f frontend/js/package.json
-          else
-            echo "No frontend/js directory."
-          fi
+          find frontend/js -name '*.js' -print0 | xargs -0 -n1 node --check
 
-      - name: npm test, if present
-        run: |
-          if [ -f frontend/package.json ]; then
-            cd frontend
-            npm ci
-            npm test --if-present
-          else
-            echo "No frontend/package.json."
-          fi
+      - name: Frontend tests
+        if: ${{ hashFiles('frontend/tests/*.test.mjs') != '' }}
+        run: npm test --prefix frontend

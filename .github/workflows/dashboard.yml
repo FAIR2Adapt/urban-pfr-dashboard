@@ -1,0 +1,76 @@
+name: dashboard
+
+on:
+  push:
+    branches: [main, feature/dashboard-composer]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # fdo-consume from FAIR2Adapt/fdo-consume at the revision this dashboard was tested with (repository variables
+      # FDO_CONSUME_REPOSITORY and FDO_CONSUME_REF override it)
+      - name: Check out fdo-consume
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.FDO_CONSUME_REPOSITORY || format('{0}/fdo-consume', github.repository_owner) }}
+          ref: ${{ vars.FDO_CONSUME_REF || 'v1.1.0' }}
+          path: fdo-consume
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: |
+          pip install -r requirements.txt
+          pip install ./fdo-consume
+          pip install jsonschema
+
+      - name: Verify the reader reads the dashboard's contracts
+        run: |
+          python -c "import fdo_consume, sys; v = fdo_consume.__version__; print('fdo-consume', v); sys.exit(0 if v.startswith('1.') else 1)"
+          python -c "from fdo_consume.contracts import load_contract; [load_contract(n, folder='config/fdo/contracts', profile_maps='config/fdo/maps') for n in ('cs3-map-v1', 'cs3-claims-v1', 'cs3-metadata-v1', 'cs3-evidence-v1', 'dashboard-composition-v1', 'plugin-description-v1', 'composer-object-v1')]"
+
+      - name: Tests
+        if: ${{ hashFiles('tests/**/test_*.py') != '' }}   # skipped, not failed, where the test folder is absent
+        env:
+          FDO_CONSUME_REQUIRED: "1"
+        run: python -m unittest discover -s tests
+
+      - name: Export the static dashboard from the test data
+        run: python scripts/export_static.py --out dist
+
+      - name: Keep the build
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-static
+          path: dist
+
+      - name: Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

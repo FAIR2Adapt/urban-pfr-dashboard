@@ -21,11 +21,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # the image with the FDO reader, at the release the dashboard is tested with
       - name: Build image
-        run: docker build -t flood-risk-dashboard:test .
+        run: >
+          docker build -t urban-pfr-dashboard:test
+          --build-arg FDO_CONSUME_PIP="git+https://github.com/${{ vars.FDO_CONSUME_REPOSITORY || 'FAIR2Adapt/fdo-consume' }}@${{ vars.FDO_CONSUME_REF || 'v1.1.0' }}" .
 
+      # the test objects are not in the image; they are mounted read-only
       - name: Start container
-        run: docker run -d --name dashboard-test -p 8000:8000 flood-risk-dashboard:test
+        run: docker run -d --name dashboard-test -p 8000:8000 -v "$PWD/test-data:/app/test-data:ro" urban-pfr-dashboard:test
 
       - name: Wait for server
         run: |
@@ -39,8 +43,10 @@ jobs:
           docker logs dashboard-test || true
           exit 1
 
-      - name: Check API
-        run: curl -fsS http://localhost:8000/api/sources
+      - name: Check a composed dataset
+        run: |
+          curl -fsS http://localhost:8000/api/sources/fdo-dashboard-demo/dataset -o dataset.json
+          python3 -c "import json; d = json.load(open('dataset.json')); assert d['plan']['status'] == 'PASS', d['plan']['status']; assert any(l['drawable'] for l in d['layers'].values())"
 
       - name: Logs
         if: always()
