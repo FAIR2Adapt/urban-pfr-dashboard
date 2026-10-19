@@ -89,7 +89,7 @@ only run-time dependency on another server.
 ## Docker
 
 ```bash
-docker build -t urban-pfr-dashboard --build-arg FDO_CONSUME_PIP="git+https://github.com/FAIR2Adapt/fdo-consume@v1.1.0" .
+docker build -t urban-pfr-dashboard --build-arg FDO_CONSUME_PIP="https://github.com/FAIR2Adapt/fdo-consume/archive/v1.1.0.tar.gz" .
 docker run -p 8000:8000 -v "$PWD/test-data:/app/test-data:ro" urban-pfr-dashboard    # http://localhost:8000
 ```
 
