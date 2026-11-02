@@ -40,7 +40,13 @@ function blockFor(sid, ds) {
   if (unconfirmed) facts.push(`${unconfirmed} claim${unconfirmed === 1 ? "" : "s"} not confirmed by the record (see scientific metadata)`);
   if (!facts.length && !claims.length) return null;
   const n = claims.length;
+  const badges = [];
+  if (/demo/i.test(md.status || "")) badges.push("Demo record");
+  if ([...byStatus.keys()].some((s) => s.startsWith("provisional"))) badges.push("Provisional", "Pending scientific validation");
+  if (/synthetic/i.test(md.status || "")) badges.push("Synthetic values");
+  const summary = n ? "Claims are taken from the research record." : "";
   return `<div class="context-city">
-    <div class="context-head"><b>${esc(city)}</b>${facts.length ? ` <span class="context-facts">${facts.map(esc).join(" · ")}</span>` : ""}${n ? ` <button type="button" class="context-more" data-open-meta>${n} statement${n === 1 ? "" : "s"}</button>` : ""}</div>
+    <div class="context-head"><b>${esc(city)}</b>${badges.map((b) => ` <span class="context-badge">${esc(b)}</span>`).join("")}${summary ? ` <span class="context-facts">${esc(summary)}</span>` : ""}${n ? ` <button type="button" class="context-more" data-open-meta>${n} statement${n === 1 ? "" : "s"}</button>` : ""}</div>
+${facts.length ? `<details class="context-tech"><summary>Technical details</summary>${facts.map(esc).join(" · ")}</details>` : ""}
   </div>`;
 }

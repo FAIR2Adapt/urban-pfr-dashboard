@@ -5,7 +5,7 @@ import { $, esc, safeUrl } from "./dom.js";
 import { mapPanels, setEnabled } from "../composition.js";
 import { classRanges, statusText } from "../map/classes.js";
 
-const TABS = [["statements", "Statements"], ["data", "Data"], ["method", "Method"], ["about", "About"]];
+const TABS = [["statements", "Statements"], ["data", "Data"], ["method", "Method"], ["about", "Record info"]];
 let activeTab = "statements";
 let afterChange = null;   // rebuilds controls and redraws after the panel switched a layer on
 let autoOpened = false;
@@ -14,6 +14,22 @@ export function wireMetadataToggle(onChange) {
   afterChange = onChange;
   $("metaToggle")?.addEventListener("click", () => setMetaOpen(!state.showMeta));
   $("metaClose")?.addEventListener("click", () => setMetaOpen(false));
+  $("metaDock")?.addEventListener("click", () => $("recordPanel")?.classList.toggle("dock-left"));
+  const resizer = $("rpResizer"), panel = $("recordPanel");
+  if (resizer && panel) {
+    let startX = 0, startWidth = 0;
+    resizer.addEventListener("pointerdown", (e) => {
+      startX = e.clientX; startWidth = panel.getBoundingClientRect().width;
+      resizer.setPointerCapture(e.pointerId); resizer.classList.add("active"); panel.classList.add("resizing");
+    });
+    resizer.addEventListener("pointermove", (e) => {
+      if (!resizer.hasPointerCapture(e.pointerId)) return;
+      const delta = panel.classList.contains("dock-left") ? e.clientX - startX : startX - e.clientX;
+      panel.style.width = `${Math.min(window.innerWidth / 2, Math.max(320, startWidth + delta))}px`;
+    });
+    const end = (e) => { if (resizer.hasPointerCapture(e.pointerId)) resizer.releasePointerCapture(e.pointerId); resizer.classList.remove("active"); panel.classList.remove("resizing"); };
+    resizer.addEventListener("pointerup", end); resizer.addEventListener("pointercancel", end);
+  }
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && state.showMeta) { setMetaOpen(false); $("metaToggle")?.focus(); } });
   const tabs = $("rpTabs");
   tabs?.addEventListener("click", (e) => { const b = e.target.closest("[role=tab]"); if (b) selectTab(b.dataset.tab); });
@@ -105,12 +121,13 @@ const section = (title, html) => (html ? `<div class="meta-section-hdr">${title}
 
 function header(ds) {
   const md = ds.metadata || {};
-  $("rpKind").textContent = isRecord(ds) ? "Knowledge Loom record" : ds.composition ? "Dashboard object" : "Data object";
+  $("rpKind").textContent = isRecord(ds) ? "Knowledge Loom record" : ds.composition ? "Dashboard object" : "Knowledge Loom record";
   $("rpTitle").textContent = md.title || ds.label || "";
   const authors = (md.authors || []).map((a) => (typeof a === "string" ? a : a.name)).filter(Boolean);
   const who = authors.length > 2 ? `${authors.slice(0, 2).join(", ")} et al.` : authors.join(", ");
   const bits = [who, (md.datePublished || "").slice(0, 10), md.license ? licenceName(md.license) : ""].filter(Boolean).map(esc);
-  const status = md.status ? `<span class="rp-status">${esc(md.status)}</span>` : "";
+  const badges = md.status ? [/demo/i.test(md.status) ? "Demo record" : "", /synthetic/i.test(md.status) ? "Synthetic values" : ""].filter(Boolean) : [];
+  const status = badges.length ? badges.map((b) => `<span class="rp-status">${esc(b)}</span>`).join(" ") : md.status ? `<span class="rp-status">${esc(md.status)}</span>` : "";
   $("rpMeta").innerHTML = bits.join(" · ") + (status ? ` ${status}` : "");
 }
 
@@ -198,7 +215,7 @@ function dataTab(ds) {
       if (!e.usable) continue;
       parts.push(filesSection(`Files of the record: ${esc(e.title || e.pid)}`, e.files || []), runSection(e.runParameters));
     }
-    parts.push(filesSection("Files of the data object", md.files || []));
+    parts.push(filesSection("Files", md.files || []));
   }
   parts.push(mapFilesSection(ds));
   const html = parts.filter(Boolean).join("");
@@ -249,7 +266,7 @@ function methodTab(ds) {
   const parts = [];
   const layers = mapPanels(ds).map((p) => p.layer).filter((l) => l && (l.classification?.method || Object.values(l.channels || {}).some((c) => (c?.breaks || []).length)));
   if (layers.length) {
-    parts.push(section("Classification, as declared", layers.map((l) => {
+    parts.push(section("Classification (as recorded)", layers.map((l) => {
       const ch = Object.entries(l.channels || {}).filter(([, c]) => (c?.breaks || []).length);
       return `<div class="meta-input-block"><div class="meta-input-title">${esc(l.label || "")}</div>
         ${l.classification?.method ? `<div class="rp-muted">${esc(l.classification.method)}</div>` : ""}
@@ -261,7 +278,7 @@ function methodTab(ds) {
   const seen = new Map();
   for (const c of ds.claims || []) for (const s of c.analysis?.procedure || []) if (s.step && !seen.has(s.step)) seen.set(s.step, s);
   if (seen.size) {
-    parts.push(section("Procedure, as the record describes it", `<ol class="rp-steps">${[...seen.values()].map((s) => `<li><span class="rp-step">${esc(s.step)}</span>${s.software || s.language ? `<span class="rp-muted"> · ${esc([s.software, s.language].filter(Boolean).join(", "))}</span>` : ""}${s.code ? `<pre class="rp-code">${esc(s.code.trim())}</pre>` : ""}</li>`).join("")}</ol>`));
+    parts.push(section("Procedure described in the record", `<ol class="rp-steps">${[...seen.values()].map((s) => `<li><span class="rp-step">${esc(s.step)}</span>${s.software || s.language ? `<span class="rp-muted"> · ${esc([s.software, s.language].filter(Boolean).join(", "))}</span>` : ""}${s.code ? `<pre class="rp-code">${esc(s.code.trim())}</pre>` : ""}</li>`).join("")}</ol>`));
   }
   const impl = [...new Map((ds.claims || []).filter((c) => c.analysis?.implementation).map((c) => [c.analysis.implementation, c.analysis])).values()];
   if (impl.length) parts.push(section("Implementation", `<ul class="rp-files">${impl.map((a) => `<li>${fileLink(a.implementationUrl, a.implementation, "text/x-python")}</li>`).join("")}</ul>`));
@@ -274,6 +291,7 @@ function aboutTab(ds) {
   const md = ds.metadata || {};
   const src = md.source || {};
   const row = (k, v) => (v ? `<tr><td>${k}</td><td>${v}</td></tr>` : "");
+  const note = `<p class="rp-note">This panel shows the FAIRified research record behind the selected map layers: its statements, data and method.</p>`;
   const authors = (md.authors || []).map((a) => (typeof a === "string" ? { name: a } : a));
   const facts = `<table class="meta-col-table rp-table">
     ${row("Published", esc((md.datePublished || "").slice(0, 10)))}
@@ -302,7 +320,7 @@ function aboutTab(ds) {
       <p><a href="capabilities.html">What this dashboard reads</a>: formats, renderers, contracts, and the edits in the objects that change the page without code.</p>
       <p class="rp-muted">Read through ${esc(ds.sourceType || "")}${src.map ? ` with the profile map ${esc(src.map)}` : ""}${src.overlay ? ` and the overlay ${esc(src.overlay)}` : ""}.</p>
     </details>`;
-  return `${md.description ? `<p class="rp-desc">${esc(md.description)}</p>` : ""}
+  return note + `${md.description ? `<p class="rp-desc">${esc(md.description)}</p>` : ""}
     ${facts}
     ${section(`Authors (${authors.length})`, who)}
     ${section("Map drawn from", basedOn)}
