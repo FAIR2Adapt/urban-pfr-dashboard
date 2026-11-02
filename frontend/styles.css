@@ -1291,6 +1291,9 @@ input[type="range"]::-moz-range-thumb {
     margin-right: 6px;
 }
 
+.context-badge { display: inline-block; margin: 0 6px 0 0; padding: 1px 8px; border: 1px solid var(--border); border-radius: 999px; font-size: 11.5px; color: var(--text-muted); background: var(--surface); }
+.context-tech { margin-top: 4px; font-size: 12px; color: var(--text-muted); } .context-tech summary { cursor: pointer; }
+
 .context-facts {
     color: var(--text-secondary);
 }
@@ -1429,13 +1432,35 @@ button.meta-overlay-close {
 }
 
 .record-panel {
-    width: 440px;
-    min-width: 440px;
+    width: 400px;
+    min-width: 320px;
+    max-width: 50vw;
+    position: relative;
     display: flex;
     flex-direction: column;
     background: var(--surface);
     border-left: 1px solid var(--border);
     min-height: 0;
+}
+
+.rp-resizer {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 7px;
+    cursor: col-resize;
+    z-index: 2;
+}
+
+.rp-resizer:hover, .rp-resizer.active { background: var(--accent); opacity: .35; }
+.record-panel.dock-left .rp-resizer { left: auto; right: 0; }
+.record-panel.resizing { user-select: none; }
+
+.record-panel.dock-left {
+    order: -1;
+    border-left: 0;
+    border-right: 1px solid var(--border);
 }
 
 .record-panel.hidden {
@@ -1636,7 +1661,7 @@ button.meta-overlay-close {
 }
 
 .rp-file { font-size: 12px; }
-.rp-fig { display: block; margin: 6px 0; max-width: 260px; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+.rp-fig { display: block; margin: 6px 0; max-width: min(100%, 420px); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
 .rp-fig img { width: 100%; display: block; }
 
 .rp-gallery { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin: 4px 0 8px; }

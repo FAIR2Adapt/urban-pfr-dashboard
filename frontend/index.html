@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Flood-Risk Dashboard</title>
+  <title>Urban Pluvial Flood Risk Dashboard</title>
   <!-- all libraries vendored under vendor/, no CDN at run time (README, "Built with") -->
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css"/>
   <link rel="stylesheet" href="vendor/maplibre-gl.css"/>
@@ -13,7 +13,7 @@
 <div class="container">
   <aside class="sidebar">
     <div class="logo">
-      <h1>Flood-Risk Dashboard</h1>
+      <h1>Urban Pluvial Flood Risk Dashboard</h1>
       <p>Urban Pluvial Flood Risk Assessment</p>
     </div>
 
@@ -73,12 +73,14 @@
     </div>
 
     <aside id="recordPanel" class="record-panel hidden" aria-label="Record">
+      <div class="rp-resizer" id="rpResizer" title="Drag to resize"></div>
       <div class="rp-head">
         <div class="rp-title">
           <span class="rp-kind" id="rpKind">Record</span>
           <h3 id="rpTitle"></h3>
           <p id="rpMeta"></p>
         </div>
+        <button type="button" class="rp-close" id="metaDock" aria-label="Move the record panel to the other side" title="Move to the other side">⇆</button>
         <button type="button" class="rp-close" id="metaClose" aria-label="Close the record panel">✕</button>
       </div>
       <div class="rp-tabs" role="tablist" id="rpTabs"></div>
